@@ -25,6 +25,19 @@ type Tenant struct {
 	TenantAdditionalPrices []TenantAdditionalPrice `json:"tenant_additional_price" gorm:"foreignKey:TenantID"`
 }
 
+type AddTenantBody struct {
+	Name                string      `json:"name"`
+	Gender              string      `json:"gender"`
+	PhoneNumber         string      `json:"phoneNumber"`
+	EmergencyContact    string      `json:"emergencyContact"`
+	IsTenant            bool        `json:"is_tenant"`
+	RoomingHouseID      uuid.UUID   `json:"rooming_house_id"`
+	RoomID              uuid.UUID   `json:"room_id"`
+	PeriodID            uuid.UUID   `json:"period_id"`
+	TenantID            uuid.UUID   `json:"tenant_id"`
+	TenantAdditionalIDs []uuid.UUID `json:"tenant_additional_ids"`
+}
+
 func (t *Tenant) BeforeCreate(tx *gorm.DB) (err error) {
 	t.ID = uuid.New()
 	t.CreatedAt = time.Now()

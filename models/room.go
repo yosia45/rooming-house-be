@@ -11,9 +11,7 @@ type Room struct {
 	BaseModel
 	Name           string         `json:"name" gorm:"not null"`
 	Floor          int            `json:"floor" gorm:"not null"`
-	ExpiredDate    *time.Time     `json:"expired_date" gorm:"not null"`
 	MaxCapacity    int            `json:"max_capacity" gorm:"not null"`
-	StartDate      *time.Time     `json:"start_date" gorm:"not null"`
 	IsVacant       bool           `json:"is_vacant" gorm:"not null"`
 	SizeID         uuid.UUID      `json:"size_id" gorm:"not null;size:191"`
 	PackageID      uuid.UUID      `json:"pricing_id" gorm:"not null;size:191"`

@@ -11,11 +11,12 @@ import (
 )
 
 type TenantController struct {
-	tenantRepo repositories.TenantRepository
+	tenantRepo                repositories.TenantRepository
+	tenantAdditionalPriceRepo repositories.TenantAdditionalRepository
 }
 
-func NewTenantController(tenantRepo repositories.TenantRepository) *TenantController {
-	return &TenantController{tenantRepo: tenantRepo}
+func NewTenantController(tenantRepo repositories.TenantRepository, tenantAdditionalRepo repositories.TenantAdditionalRepository) *TenantController {
+	return &TenantController{tenantRepo: tenantRepo, tenantAdditionalPriceRepo: tenantAdditionalRepo}
 }
 
 func (tc *TenantController) CreateTenant(c echo.Context) error {
@@ -54,10 +55,6 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
 	}
 
-	if len(tenantBody.TenantAdditionalIDs) == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("tenant additional ids is required"))
-	}
-
 	if tenantBody.IsTenant == true {
 		tenantBody.TenantID = uuid.Nil
 	}
@@ -86,5 +83,61 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to create tenant"))
 	}
 
+	if len(tenantBody.TenantAdditionalIDs) > 0 {
+		var tenantAdditionalPrices []models.TenantAdditionalPrice
+		for _, tenantAdditionalID := range tenantBody.TenantAdditionalIDs {
+			tenantAdditionalPrice := models.TenantAdditionalPrice{
+				TenantID:          newTenant.ID,
+				AdditionalPriceID: tenantAdditionalID,
+			}
+
+			tenantAdditionalPrices = append(tenantAdditionalPrices, tenantAdditionalPrice)
+		}
+
+		if err := tc.tenantAdditionalPriceRepo.CreateTenantAdditional(&tenantAdditionalPrices); err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("failed to create tenant additional prices"))
+		}
+	}
+
 	return c.JSON(http.StatusCreated, newTenant)
+}
+
+func (tc *TenantController) FindAllTenants(c echo.Context) error {
+	tenants, err := tc.tenantRepo.FindAllTenants()
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to find tenants"))
+	}
+
+	return c.JSON(http.StatusOK, tenants)
+}
+
+func (tc *TenantController) FindTenantByID(c echo.Context) error {
+	tenantID := c.Param("id")
+
+	parsedTenantID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("invalid tenant id"))
+	}
+
+	tenant, err := tc.tenantRepo.FindTenantByID(parsedTenantID)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to find tenant"))
+	}
+
+	return c.JSON(http.StatusOK, tenant)
+}
+
+func (tc *TenantController) DeleteTenantByID(c echo.Context) error {
+	tenantID := c.Param("id")
+
+	parsedTenantID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("invalid tenant id"))
+	}
+
+	if err := tc.tenantRepo.DeleteTenantByID(parsedTenantID); err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to delete tenant"))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "success to delete tenant"})
 }

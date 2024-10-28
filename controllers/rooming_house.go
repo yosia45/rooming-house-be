@@ -14,10 +14,11 @@ import (
 type RoomingHouseController struct {
 	roomingHouseRepo         repositories.RoomingHouseRepository
 	roomingHouseFacilityRepo repositories.RoomingHouseFacilityRepository
+	facilityRepo             repositories.FacilityRepository
 }
 
-func NewRoomingHouseController(roomingHouseRepo repositories.RoomingHouseRepository, roomingHouseFacilityRepo repositories.RoomingHouseFacilityRepository) *RoomingHouseController {
-	return &RoomingHouseController{roomingHouseRepo: roomingHouseRepo, roomingHouseFacilityRepo: roomingHouseFacilityRepo}
+func NewRoomingHouseController(roomingHouseRepo repositories.RoomingHouseRepository, roomingHouseFacilityRepo repositories.RoomingHouseFacilityRepository, facilityRepo repositories.FacilityRepository) *RoomingHouseController {
+	return &RoomingHouseController{roomingHouseRepo: roomingHouseRepo, roomingHouseFacilityRepo: roomingHouseFacilityRepo, facilityRepo: facilityRepo}
 }
 
 func (rhc *RoomingHouseController) CreateRoomingHouse(c echo.Context) error {
@@ -63,11 +64,19 @@ func (rhc *RoomingHouseController) CreateRoomingHouse(c echo.Context) error {
 
 	var RoomingHouseFacilities []models.RoomingHouseFacility
 	for _, roomingHouseFacilityID := range roomingHouseBody.RoomingHouseFacilityIDs {
-		roomingHouseFacility := models.RoomingHouseFacility{
-			RoomingHouseID: newRoomingHouse.ID,
-			FacilityID:     roomingHouseFacilityID,
+		facility, err := rhc.facilityRepo.GetFacilityByID(roomingHouseFacilityID)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewNotFoundError("facility not found"))
 		}
-		RoomingHouseFacilities = append(RoomingHouseFacilities, roomingHouseFacility)
+		if facility.IsPublic {
+			roomingHouseFacility := models.RoomingHouseFacility{
+				RoomingHouseID: newRoomingHouse.ID,
+				FacilityID:     roomingHouseFacilityID,
+			}
+			RoomingHouseFacilities = append(RoomingHouseFacilities, roomingHouseFacility)
+		} else {
+			return utils.HandlerError(c, utils.NewBadRequestError("facility is not for room"))
+		}
 	}
 
 	if err := rhc.roomingHouseFacilityRepo.CreateRoomingHouseFacility(&RoomingHouseFacilities); err != nil {

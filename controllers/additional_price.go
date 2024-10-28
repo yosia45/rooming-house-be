@@ -11,11 +11,13 @@ import (
 )
 
 type AdditionalPriceController struct {
-	additionalPriceRepo repositories.AdditionalPriceRepository
+	additionalPriceRepo  repositories.AdditionalPriceRepository
+	additionalPeriodRepo repositories.AdditionalPeriodRepository
+	periodRepo           repositories.PeriodRepository
 }
 
-func NewAdditionalPriceController(additionalPriceRepo repositories.AdditionalPriceRepository) *AdditionalPriceController {
-	return &AdditionalPriceController{additionalPriceRepo: additionalPriceRepo}
+func NewAdditionalPriceController(additionalPriceRepo repositories.AdditionalPriceRepository, additionalPeriodRepo repositories.AdditionalPeriodRepository, periodRepo repositories.PeriodRepository) *AdditionalPriceController {
+	return &AdditionalPriceController{additionalPriceRepo: additionalPriceRepo, additionalPeriodRepo: additionalPeriodRepo, periodRepo: periodRepo}
 }
 
 func (apc *AdditionalPriceController) CreateAdditionalPrice(c echo.Context) error {
@@ -31,8 +33,12 @@ func (apc *AdditionalPriceController) CreateAdditionalPrice(c echo.Context) erro
 		return utils.HandlerError(c, utils.NewBadRequestError("name is required"))
 	}
 
-	if additionalPriceBody.Price == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("price is required"))
+	if additionalPriceBody.MonthlyPrice == 0 {
+		return utils.HandlerError(c, utils.NewBadRequestError("monthly price is required"))
+	}
+
+	if additionalPriceBody.AnnualPrice == 0 {
+		return utils.HandlerError(c, utils.NewBadRequestError("annual price is required"))
 	}
 
 	var roomingHouseID uuid.UUID
@@ -45,12 +51,58 @@ func (apc *AdditionalPriceController) CreateAdditionalPrice(c echo.Context) erro
 
 	newAdditionalPrice := models.AdditionalPrice{
 		Name:           additionalPriceBody.Name,
-		Price:          additionalPriceBody.Price,
 		RoomingHouseID: roomingHouseID,
 	}
 
 	if err := apc.additionalPriceRepo.CreateAdditionalPrice(&newAdditionalPrice); err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to create additional price"))
+	}
+
+	daily, err := apc.periodRepo.FindPeriodByName("daily")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find daily period"))
+	}
+
+	weekly, err := apc.periodRepo.FindPeriodByName("weekly")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find weekly period"))
+	}
+
+	monthly, err := apc.periodRepo.FindPeriodByName("monthly")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find monthly period"))
+	}
+
+	annual, err := apc.periodRepo.FindPeriodByName("annual")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find annual period"))
+	}
+
+	additionalPeriods := []models.AdditionalPeriod{
+		{
+			PeriodID:          daily.ID,
+			AdditionalPriceID: newAdditionalPrice.ID,
+			Price:             additionalPriceBody.DailyPrice,
+		},
+		{
+			PeriodID:          weekly.ID,
+			AdditionalPriceID: newAdditionalPrice.ID,
+			Price:             additionalPriceBody.WeeklyPrice,
+		},
+		{
+			PeriodID:          monthly.ID,
+			AdditionalPriceID: newAdditionalPrice.ID,
+			Price:             additionalPriceBody.MonthlyPrice,
+		},
+		{
+			PeriodID:          annual.ID,
+			AdditionalPriceID: newAdditionalPrice.ID,
+			Price:             additionalPriceBody.AnnualPrice,
+		},
+	}
+
+	if err := apc.additionalPeriodRepo.CreateAdditionalPeriod(&additionalPeriods); err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to create additional period"))
 	}
 
 	return c.JSON(http.StatusCreated, newAdditionalPrice)
@@ -95,17 +147,67 @@ func (apc *AdditionalPriceController) UpdateAdditionalPriceByID(c echo.Context) 
 		return utils.HandlerError(c, utils.NewBadRequestError("name is required"))
 	}
 
-	if additionalPriceBody.Price == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("price is required"))
+	if additionalPriceBody.MonthlyPrice == 0 {
+		return utils.HandlerError(c, utils.NewBadRequestError("monthly price is required"))
+	}
+
+	if additionalPriceBody.AnnualPrice == 0 {
+		return utils.HandlerError(c, utils.NewBadRequestError("annual price is required"))
 	}
 
 	updatedAdditionalPrice := models.AdditionalPrice{
-		Name:  additionalPriceBody.Name,
-		Price: additionalPriceBody.Price,
+		Name: additionalPriceBody.Name,
 	}
 
 	if err := apc.additionalPriceRepo.UpdateAdditionalPriceByID(&updatedAdditionalPrice, id); err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update additional price"))
+	}
+
+	daily, err := apc.periodRepo.FindPeriodByName("daily")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find daily period"))
+	}
+
+	weekly, err := apc.periodRepo.FindPeriodByName("weekly")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find weekly period"))
+	}
+
+	monthly, err := apc.periodRepo.FindPeriodByName("monthly")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find monthly period"))
+	}
+
+	annually, err := apc.periodRepo.FindPeriodByName("annual")
+	if err != nil {
+		return utils.HandlerError(c, utils.NewNotFoundError("failed to find annual period"))
+	}
+
+	additionalPeriods := []models.AdditionalPeriod{
+		{
+			PeriodID:          daily.ID,
+			AdditionalPriceID: id,
+			Price:             additionalPriceBody.DailyPrice,
+		},
+		{
+			PeriodID:          weekly.ID,
+			AdditionalPriceID: id,
+			Price:             additionalPriceBody.WeeklyPrice,
+		},
+		{
+			PeriodID:          monthly.ID,
+			AdditionalPriceID: id,
+			Price:             additionalPriceBody.MonthlyPrice,
+		},
+		{
+			PeriodID:          annually.ID,
+			AdditionalPriceID: id,
+			Price:             additionalPriceBody.AnnualPrice,
+		},
+	}
+
+	if err := apc.additionalPeriodRepo.UpdateAdditionalPeriod(&additionalPeriods, id); err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to update additional period"))
 	}
 
 	return c.JSON(http.StatusOK, updatedAdditionalPrice)

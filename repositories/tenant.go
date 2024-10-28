@@ -10,7 +10,7 @@ import (
 type TenantRepository interface {
 	CreateTenant(tenant *models.Tenant) error
 	FindAllTenants() (*[]models.Tenant, error)
-	FindTenantByID(id uuid.UUID) (*models.Tenant, error)
+	FindTenantByID(tenantID uuid.UUID) (*models.Tenant, error)
 	UpdateTenantByID(tenant *models.Tenant, id uuid.UUID) error
 	DeleteTenantByID(id uuid.UUID) error
 }
@@ -38,9 +38,9 @@ func (r *tenantRepository) FindAllTenants() (*[]models.Tenant, error) {
 	return &tenants, nil
 }
 
-func (r *tenantRepository) FindTenantByID(id uuid.UUID) (*models.Tenant, error) {
+func (r *tenantRepository) FindTenantByID(tenantID uuid.UUID) (*models.Tenant, error) {
 	var tenant models.Tenant
-	if err := r.db.Where("id = ?", id).First(&tenant).Error; err != nil {
+	if err := r.db.Preload("AdditionalPrices", "tenant_additional_prices_id = ?", tenantID).Preload("AdditionalPrices.AdditionalPeriod").Where("id = ?", tenantID).First(&tenant).Error; err != nil {
 		return nil, err
 	}
 	return &tenant, nil

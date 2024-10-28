@@ -10,8 +10,10 @@ import (
 
 func AdditionalPriceRoutes(e *echo.Echo) {
 	additionalPriceRepo := repositories.NewAdditionalPriceRepository(config.DB)
+	additionalPeriodRepo := repositories.NewAdditionalPeriodRepository(config.DB)
+	periodRepo := repositories.NewPeriodRepository(config.DB)
 
-	additionalPriceController := controllers.NewAdditionalPriceController(additionalPriceRepo)
+	additionalPriceController := controllers.NewAdditionalPriceController(additionalPriceRepo, additionalPeriodRepo, periodRepo)
 
 	additionalPrice := e.Group("/additional-price")
 	additionalPrice.GET("/:id", additionalPriceController.FindAdditionalPriceByID)

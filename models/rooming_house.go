@@ -9,15 +9,15 @@ import (
 
 type RoomingHouse struct {
 	BaseModel
-	Name                   string                 `json:"name" gorm:"not null"`
-	Description            string                 `json:"description" gorm:"not null"`
-	Address                string                 `json:"address" gorm:"not null"`
-	FloorTotal             int                    `json:"floor_total" gorm:"not null"`
-	OwnerID                uuid.UUID              `json:"owner_id" gorm:"not null; size:191"`
-	Transactions           []Transaction          `json:"transactions" gorm:"foreignKey:RoomingHouseID"`
-	RoomingHouseFacilities []RoomingHouseFacility `json:"rooming_house_facilities" gorm:"foreignKey:RoomingHouseID"`
-	Rooms                  []Room                 `json:"rooms" gorm:"foreignKey:RoomingHouseID"`
-	Admin                  Admin                  `json:"admin" gorm:"foreignKey:RoomingHouseID"`
+	Name         string        `json:"name" gorm:"not null"`
+	Description  string        `json:"description" gorm:"not null"`
+	Address      string        `json:"address" gorm:"not null"`
+	FloorTotal   int           `json:"floor_total" gorm:"not null"`
+	OwnerID      uuid.UUID     `json:"owner_id" gorm:"not null; size:191"`
+	Transactions []Transaction `json:"transactions" gorm:"foreignKey:RoomingHouseID"`
+	Facilities   []Facility    `gorm:"many2many:rooming_house_facilities;foreignKey:ID;joinForeignKey:RoomingHouseID;References:ID;joinReferences:FacilityID"`
+	Rooms        []Room        `json:"rooms" gorm:"foreignKey:RoomingHouseID"`
+	Admin        Admin         `json:"admin" gorm:"foreignKey:RoomingHouseID"`
 }
 
 type RoomingHouseBody struct {

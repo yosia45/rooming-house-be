@@ -9,10 +9,11 @@ import (
 
 type Period struct {
 	BaseModel
-	Name           string          `json:"name" gorm:"not null"`
-	Unit           string          `json:"unit" gorm:"not null"`
-	PeriodPackages []PeriodPackage `json:"period_packages" gorm:"foreignKey:PeriodID"`
-	Tenants        []Tenant        `json:"tenants" gorm:"foreignKey:PeriodID"`
+	Name              string             `json:"name" gorm:"not null"`
+	Unit              string             `json:"unit" gorm:"not null"`
+	PeriodPackages    []PeriodPackage    `json:"period_packages" gorm:"foreignKey:PeriodID"`
+	Tenants           []Tenant           `json:"tenants" gorm:"foreignKey:PeriodID"`
+	AdditionalPeriods []AdditionalPeriod `json:"additional_periods" gorm:"foreignKey:PeriodID"`
 }
 
 func (p *Period) BeforeCreate(tx *gorm.DB) (err error) {

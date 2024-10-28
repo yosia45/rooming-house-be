@@ -44,6 +44,7 @@ func InitDB() {
 		&models.TransactionCategory{},
 		&models.Transaction{},
 		&models.AdditionalPrice{},
+		&models.AdditionalPeriod{},
 		&models.Tenant{},
 		&models.TenantAdditionalPrice{},
 	)

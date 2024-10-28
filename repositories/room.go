@@ -55,7 +55,7 @@ func (r *roomRepository) FindAllRooms(roomingHouseID uuid.UUID) (*[]models.Room,
 
 func (r *roomRepository) FindRoomByID(id uuid.UUID) (*models.Room, error) {
 	var room models.Room
-	if err := r.db.Where("id = ?", id).First(&room).Error; err != nil {
+	if err := r.db.Preload("Tenants").Preload("PricingPackages").Preload("Sizes").Preload("Facilities").Where("id = ?", id).First(&room).Error; err != nil {
 		return nil, err
 	}
 	return &room, nil

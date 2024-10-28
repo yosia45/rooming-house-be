@@ -21,7 +21,7 @@ func SeedPeriod(db *gorm.DB) {
 			Unit: "month",
 		},
 		{
-			Name: "Yearly",
+			Name: "Annually",
 			Unit: "year",
 		},
 	}

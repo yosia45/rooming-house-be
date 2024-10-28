@@ -34,7 +34,7 @@ func (r *roomingHouseRepository) CreateRoomingHouse(roomingHouse *models.Rooming
 func (r *roomingHouseRepository) FindRoomingHouseByID(id uuid.UUID) (*models.RoomingHouse, error) {
 	var roomingHouse models.RoomingHouse
 	if err := r.db.Preload("Transactions").
-		Preload("RoomingHouseFacilities").
+		Preload("Facilities").
 		Preload("Rooms").
 		Preload("Admin").
 		Where("id = ?", id).

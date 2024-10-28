@@ -51,7 +51,7 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("period id is required"))
 	}
 
-	if tenantBody.IsTenant == false && tenantBody.TenantID == uuid.Nil {
+	if !tenantBody.IsTenant && tenantBody.TenantID == uuid.Nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
 	}
 

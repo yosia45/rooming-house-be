@@ -9,16 +9,16 @@ import (
 
 type Room struct {
 	BaseModel
-	Name           string         `json:"name" gorm:"not null"`
-	Floor          int            `json:"floor" gorm:"not null"`
-	MaxCapacity    int            `json:"max_capacity" gorm:"not null"`
-	IsVacant       bool           `json:"is_vacant" gorm:"not null"`
-	SizeID         uuid.UUID      `json:"size_id" gorm:"not null;size:191"`
-	PackageID      uuid.UUID      `json:"pricing_id" gorm:"not null;size:191"`
-	RoomingHouseID uuid.UUID      `json:"rooming_house_id" gorm:"not null;size:191"`
-	RoomFacility   []RoomFacility `json:"room_facility" gorm:"foreignKey:RoomID"`
-	Tenants        []Tenant       `json:"tenant" gorm:"foreignKey:RoomID"`
-	Transactions   []Transaction  `json:"transactions" gorm:"foreignKey:RoomID"`
+	Name           string        `json:"name" gorm:"not null"`
+	Floor          int           `json:"floor" gorm:"not null"`
+	MaxCapacity    int           `json:"max_capacity" gorm:"not null"`
+	IsVacant       bool          `json:"is_vacant" gorm:"not null"`
+	SizeID         uuid.UUID     `json:"size_id" gorm:"not null;size:191"`
+	PackageID      uuid.UUID     `json:"pricing_id" gorm:"not null;size:191"`
+	RoomingHouseID uuid.UUID     `json:"rooming_house_id" gorm:"not null;size:191"`
+	Facilities     []Facility    `gorm:"many2many:room_facilities;foreignKey:ID;joinForeignKey:RoomID;References:ID;joinReferences:FacilityID"`
+	Tenants        []Tenant      `json:"tenant" gorm:"foreignKey:RoomID"`
+	Transactions   []Transaction `json:"transactions" gorm:"foreignKey:RoomID"`
 }
 
 type AddRoomBody struct {

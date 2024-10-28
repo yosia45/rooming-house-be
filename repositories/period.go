@@ -10,6 +10,7 @@ import (
 type PeriodRepository interface {
 	CreatePeriod(period *models.Period) error
 	FindPeriodByName(name string) (*models.Period, error)
+	FindPeriodByID(id uuid.UUID) (*models.Period, error)
 	FindAllPeriods() (*[]models.Period, error)
 	UpdatePeriodByID(period *models.Period, id uuid.UUID) error
 	DeletePeriodByID(id uuid.UUID) error
@@ -33,6 +34,14 @@ func (r *periodRepository) CreatePeriod(period *models.Period) error {
 func (r *periodRepository) FindPeriodByName(name string) (*models.Period, error) {
 	var period models.Period
 	if err := r.db.Where("name LIKE ?", name).Find(&period).Error; err != nil {
+		return nil, err
+	}
+	return &period, nil
+}
+
+func (r *periodRepository) FindPeriodByID(id uuid.UUID) (*models.Period, error) {
+	var period models.Period
+	if err := r.db.Where("id = ?", id).Find(&period).Error; err != nil {
 		return nil, err
 	}
 	return &period, nil

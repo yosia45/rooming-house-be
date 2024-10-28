@@ -32,6 +32,10 @@ func main() {
 	cli.SizeRoutes(e)
 	cli.AdditionalPriceRoutes(e)
 	cli.TransactionCategoryRoutes(e)
+	cli.PricingPackageRoutes(e)
+	cli.RoomRoutes(e)
+	cli.AdditionalPriceRoutes(e)
+	cli.TransactionRoutes(e)
 
 	e.Logger.Fatal(e.Start(":" + port))
 }

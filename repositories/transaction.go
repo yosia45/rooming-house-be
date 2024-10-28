@@ -9,7 +9,7 @@ import (
 
 type TransactionRepository interface {
 	CreateTransaction(transaction *models.Transaction) error
-	FindAllTransactions() (*[]models.Transaction, error)
+	FindAllTransactions(roomingHouseIDs []uuid.UUID) (*[]models.Transaction, error)
 	FindTransactionByID(id uuid.UUID) (*models.Transaction, error)
 	DeleteTransactionByID(id uuid.UUID) error
 }
@@ -29,9 +29,9 @@ func (t *transactionRepository) CreateTransaction(transaction *models.Transactio
 	return nil
 }
 
-func (t *transactionRepository) FindAllTransactions() (*[]models.Transaction, error) {
+func (t *transactionRepository) FindAllTransactions(roomingHouseIDs []uuid.UUID) (*[]models.Transaction, error) {
 	var transactions []models.Transaction
-	if err := t.db.Find(&transactions).Error; err != nil {
+	if err := t.db.Where("rooming_house_id IN ?", roomingHouseIDs).Find(&transactions).Error; err != nil {
 		return nil, err
 	}
 	return &transactions, nil

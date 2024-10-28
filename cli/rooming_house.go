@@ -12,8 +12,9 @@ import (
 func RoomingHouseRoutes(e *echo.Echo) {
 	roomingHouseRepo := repositories.NewRoomingHouseRepository(config.DB)
 	roomingHouseFacilityRepo := repositories.NewRoomingHouseFacilityRepository(config.DB)
+	facilityRepo := repositories.NewFacilityRepository(config.DB)
 
-	roomingHouseController := controllers.NewRoomingHouseController(roomingHouseRepo, roomingHouseFacilityRepo)
+	roomingHouseController := controllers.NewRoomingHouseController(roomingHouseRepo, roomingHouseFacilityRepo, facilityRepo)
 
 	roomingHouse := e.Group("/roominghouse")
 	roomingHouse.GET("/:id", roomingHouseController.GetRoomingHouseByID, middlewares.JWTAuth)

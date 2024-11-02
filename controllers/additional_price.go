@@ -14,10 +14,11 @@ type AdditionalPriceController struct {
 	additionalPriceRepo  repositories.AdditionalPriceRepository
 	additionalPeriodRepo repositories.AdditionalPeriodRepository
 	periodRepo           repositories.PeriodRepository
+	roomingHouseRepo     repositories.RoomingHouseRepository
 }
 
-func NewAdditionalPriceController(additionalPriceRepo repositories.AdditionalPriceRepository, additionalPeriodRepo repositories.AdditionalPeriodRepository, periodRepo repositories.PeriodRepository) *AdditionalPriceController {
-	return &AdditionalPriceController{additionalPriceRepo: additionalPriceRepo, additionalPeriodRepo: additionalPeriodRepo, periodRepo: periodRepo}
+func NewAdditionalPriceController(additionalPriceRepo repositories.AdditionalPriceRepository, additionalPeriodRepo repositories.AdditionalPeriodRepository, periodRepo repositories.PeriodRepository, roomingHouseRepo repositories.RoomingHouseRepository) *AdditionalPriceController {
+	return &AdditionalPriceController{additionalPriceRepo: additionalPriceRepo, additionalPeriodRepo: additionalPeriodRepo, periodRepo: periodRepo, roomingHouseRepo: roomingHouseRepo}
 }
 
 func (apc *AdditionalPriceController) CreateAdditionalPrice(c echo.Context) error {
@@ -58,22 +59,22 @@ func (apc *AdditionalPriceController) CreateAdditionalPrice(c echo.Context) erro
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to create additional price"))
 	}
 
-	daily, err := apc.periodRepo.FindPeriodByName("daily")
+	daily, err := apc.periodRepo.FindPeriodByName("Daily")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find daily period"))
 	}
 
-	weekly, err := apc.periodRepo.FindPeriodByName("weekly")
+	weekly, err := apc.periodRepo.FindPeriodByName("Weekly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find weekly period"))
 	}
 
-	monthly, err := apc.periodRepo.FindPeriodByName("monthly")
+	monthly, err := apc.periodRepo.FindPeriodByName("Monthly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find monthly period"))
 	}
 
-	annual, err := apc.periodRepo.FindPeriodByName("annual")
+	annual, err := apc.periodRepo.FindPeriodByName("Annually")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find annual period"))
 	}
@@ -123,7 +124,25 @@ func (apc *AdditionalPriceController) FindAdditionalPriceByID(c echo.Context) er
 }
 
 func (apc *AdditionalPriceController) FindAllAdditionalPrices(c echo.Context) error {
-	additionalPrices, err := apc.additionalPriceRepo.FindAllAdditionalPrices()
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+
+	var roomingHouseIDs []uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
+	} else {
+		IDs, err := apc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+
+		if err != nil {
+			return utils.HandlerError(c, utils.NewNotFoundError("rooming houses not found"))
+		}
+
+		for _, roomingHouseID := range IDs {
+			roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+		}
+	}
+
+	additionalPrices, err := apc.additionalPriceRepo.FindAllAdditionalPrices(roomingHouseIDs)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("additional prices not found"))
 	}
@@ -163,22 +182,22 @@ func (apc *AdditionalPriceController) UpdateAdditionalPriceByID(c echo.Context) 
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update additional price"))
 	}
 
-	daily, err := apc.periodRepo.FindPeriodByName("daily")
+	daily, err := apc.periodRepo.FindPeriodByName("Daily")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find daily period"))
 	}
 
-	weekly, err := apc.periodRepo.FindPeriodByName("weekly")
+	weekly, err := apc.periodRepo.FindPeriodByName("Weekly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find weekly period"))
 	}
 
-	monthly, err := apc.periodRepo.FindPeriodByName("monthly")
+	monthly, err := apc.periodRepo.FindPeriodByName("Monthly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find monthly period"))
 	}
 
-	annually, err := apc.periodRepo.FindPeriodByName("annual")
+	annually, err := apc.periodRepo.FindPeriodByName("Annually")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("failed to find annual period"))
 	}
@@ -210,7 +229,7 @@ func (apc *AdditionalPriceController) UpdateAdditionalPriceByID(c echo.Context) 
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update additional period"))
 	}
 
-	return c.JSON(http.StatusOK, updatedAdditionalPrice)
+	return c.JSON(http.StatusOK, map[string]string{"message": "additional price deleted"})
 }
 
 func (apc *AdditionalPriceController) DeleteAdditionalPriceByID(c echo.Context) error {

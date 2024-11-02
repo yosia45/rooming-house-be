@@ -14,10 +14,11 @@ type PricingPackageController struct {
 	pricingPackageRepo repositories.PricingPackageRepository
 	periodRepo         repositories.PeriodRepository
 	periodPackageRepo  repositories.PeriodPackageRepository
+	roomingHouseRepo   repositories.RoomingHouseRepository
 }
 
-func NewPricingPackageController(pricingPackageRepo repositories.PricingPackageRepository, periodRepo repositories.PeriodRepository, periodPackageRepo repositories.PeriodPackageRepository) *PricingPackageController {
-	return &PricingPackageController{pricingPackageRepo: pricingPackageRepo, periodRepo: periodRepo, periodPackageRepo: periodPackageRepo}
+func NewPricingPackageController(pricingPackageRepo repositories.PricingPackageRepository, periodRepo repositories.PeriodRepository, periodPackageRepo repositories.PeriodPackageRepository, roomingHouseRepo repositories.RoomingHouseRepository) *PricingPackageController {
+	return &PricingPackageController{pricingPackageRepo: pricingPackageRepo, periodRepo: periodRepo, periodPackageRepo: periodPackageRepo, roomingHouseRepo: roomingHouseRepo}
 }
 
 func (ppc *PricingPackageController) CreatePricingPackage(c echo.Context) error {
@@ -52,6 +53,10 @@ func (ppc *PricingPackageController) CreatePricingPackage(c echo.Context) error 
 		return utils.HandlerError(c, utils.NewBadRequestError("yearly price is required"))
 	}
 
+	if userPayload.Role == "owner" && pricingPackageBody.RoomingHouseID == uuid.Nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
+	}
+
 	var roomingHouseID uuid.UUID
 
 	if userPayload.Role == "owner" {
@@ -69,22 +74,22 @@ func (ppc *PricingPackageController) CreatePricingPackage(c echo.Context) error 
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to create pricing package"))
 	}
 
-	daily, err := ppc.periodRepo.FindPeriodByName("daily")
+	daily, err := ppc.periodRepo.FindPeriodByName("Daily")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find daily id"))
 	}
 
-	weekly, err := ppc.periodRepo.FindPeriodByName("weekly")
+	weekly, err := ppc.periodRepo.FindPeriodByName("Weekly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find weekly id"))
 	}
 
-	monthly, err := ppc.periodRepo.FindPeriodByName("monthly")
+	monthly, err := ppc.periodRepo.FindPeriodByName("Monthly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find monthly id"))
 	}
 
-	annual, err := ppc.periodRepo.FindPeriodByName("annual")
+	annual, err := ppc.periodRepo.FindPeriodByName("Annually")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find annual id"))
 	}
@@ -120,7 +125,25 @@ func (ppc *PricingPackageController) CreatePricingPackage(c echo.Context) error 
 }
 
 func (ppc *PricingPackageController) GetAllPricingPackages(c echo.Context) error {
-	pricingPackages, err := ppc.pricingPackageRepo.FindAllPricingPackages()
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+
+	var roomingHouseIDs []uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
+	} else {
+		IDs, err := ppc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("failed to get rooming house"))
+		}
+
+		for _, roomingHouseID := range IDs {
+			roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+		}
+	}
+
+	pricingPackages, err := ppc.pricingPackageRepo.FindAllPricingPackages(roomingHouseIDs)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to get all pricing packages"))
 	}
@@ -172,22 +195,22 @@ func (ppc *PricingPackageController) UpdatePricingPackage(c echo.Context) error 
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update pricing package"))
 	}
 
-	daily, err := ppc.periodRepo.FindPeriodByName("daily")
+	daily, err := ppc.periodRepo.FindPeriodByName("Daily")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find daily id"))
 	}
 
-	weekly, err := ppc.periodRepo.FindPeriodByName("weekly")
+	weekly, err := ppc.periodRepo.FindPeriodByName("Weekly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find weekly id"))
 	}
 
-	monthly, err := ppc.periodRepo.FindPeriodByName("monthly")
+	monthly, err := ppc.periodRepo.FindPeriodByName("Monthly")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find monthly id"))
 	}
 
-	annual, err := ppc.periodRepo.FindPeriodByName("annual")
+	annual, err := ppc.periodRepo.FindPeriodByName("Annually")
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find annual id"))
 	}
@@ -215,11 +238,11 @@ func (ppc *PricingPackageController) UpdatePricingPackage(c echo.Context) error 
 		},
 	}
 
-	if err := ppc.periodPackageRepo.UpdatePeriodPackageByPackageID(&periodPackage, pricingPackageUUID); err != nil {
+	if err := ppc.periodPackageRepo.UpdatePeriodPackageByPackageID(periodPackage, pricingPackageUUID); err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update period package"))
 	}
 
-	return c.JSON(http.StatusOK, pricingPackage)
+	return c.JSON(http.StatusOK, map[string]string{"message": "pricing package updated"})
 }
 
 func (ppc *PricingPackageController) DeletePricingPackage(c echo.Context) error {

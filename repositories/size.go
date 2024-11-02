@@ -11,7 +11,7 @@ import (
 type SizeRepository interface {
 	CreateSize(size *models.Size) error
 	FindSizeByID(id uuid.UUID) (*models.Size, error)
-	FindAllSizes() (*[]models.Size, error)
+	FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.Size, error)
 	UpdateSizeByID(size *models.Size, id uuid.UUID) error
 	DeleteSizeByID(id uuid.UUID) error
 }
@@ -39,11 +39,17 @@ func (r *sizeRepository) FindSizeByID(id uuid.UUID) (*models.Size, error) {
 	return &size, nil
 }
 
-func (r *sizeRepository) FindAllSizes() (*[]models.Size, error) {
+func (r *sizeRepository) FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.Size, error) {
 	var sizes []models.Size
-	if err := r.db.Find(&sizes).Error; err != nil {
-		return nil, err
+
+	for _, id := range roomingHouseID {
+		var temp []models.Size
+		if err := r.db.Where("rooming_house_id = ?", id).Find(&temp).Error; err != nil {
+			return nil, err
+		}
+		sizes = append(sizes, temp...)
 	}
+
 	return &sizes, nil
 }
 

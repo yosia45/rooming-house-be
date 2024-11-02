@@ -85,7 +85,7 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 			return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
 		}
 
-		periodPackage, err := tc.periodPackageRepo.FindPeriodPackageByPeriodIDPackageID(tenant.PeriodID, room.PackageID)
+		periodPackage, err := tc.periodPackageRepo.FindPeriodPackageByPeriodIDPackageID(tenant.PeriodID, room.PricingPackage.ID)
 		if err != nil {
 			return utils.HandlerError(c, utils.NewBadRequestError("period package not found"))
 		}

@@ -32,6 +32,13 @@ type UpdateAdditionalPriceBody struct {
 	AnnualPrice  float64 `json:"annual_price"`
 }
 
+type AdditionalPriceResponse struct {
+	ID             uuid.UUID          `json:"id"`
+	Name           string             `json:"name"`
+	RoomingHouseID uuid.UUID          `json:"rooming_house_id"`
+	Prices         map[string]float64 `json:"prices"`
+}
+
 func (ap *AdditionalPrice) BeforeCreate(tx *gorm.DB) (err error) {
 	ap.ID = uuid.New()
 	ap.CreatedAt = time.Now()

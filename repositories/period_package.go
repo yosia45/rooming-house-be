@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"errors"
 	"rooming-house-cms-be/models"
 
 	"github.com/google/uuid"
@@ -12,7 +11,7 @@ type PeriodPackageRepository interface {
 	CreatePeriodPackage(periodPackage *[]models.PeriodPackage) error
 	FindPeriodPackageByPackageID(packageID uuid.UUID) (*[]models.PeriodPackage, error)
 	FindPeriodPackageByPeriodIDPackageID(periodID uuid.UUID, packageID uuid.UUID) (*models.PeriodPackage, error)
-	UpdatePeriodPackageByPackageID(periodPackage *[]models.PeriodPackage, packageID uuid.UUID) error
+	UpdatePeriodPackageByPackageID(periodPackage []models.PeriodPackage, packageID uuid.UUID) error
 }
 
 type periodPackageRepository struct {
@@ -46,17 +45,15 @@ func (r *periodPackageRepository) FindPeriodPackageByPeriodIDPackageID(periodID 
 	return &periodPackage, nil
 }
 
-func (r *periodPackageRepository) UpdatePeriodPackageByPackageID(periodPackage *[]models.PeriodPackage, packageID uuid.UUID) error {
-	res := r.db.Delete(&periodPackage, "pricing_package_id = ?", packageID)
+func (r *periodPackageRepository) UpdatePeriodPackageByPackageID(periodPackage []models.PeriodPackage, packageID uuid.UUID) error {
+	for _, periodPackage := range periodPackage {
+		err := r.db.Model(&models.PeriodPackage{}).
+			Where("pricing_package_id = ? AND period_id = ?", packageID, periodPackage.PeriodID).
+			Update("price", periodPackage.Price).Error
 
-	if res.Error != nil {
-		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-			return errors.New("period package not found")
+		if err != nil {
+			return err
 		}
-	}
-
-	if err := r.db.Create(periodPackage).Error; err != nil {
-		return err
 	}
 
 	return nil

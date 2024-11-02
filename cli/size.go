@@ -11,10 +11,11 @@ import (
 
 func SizeRoutes(e *echo.Echo) {
 	sizeRepo := repositories.NewSizeRepository(config.DB)
+	roomingHouseRepo := repositories.NewRoomingHouseRepository(config.DB)
 
-	sizeController := controllers.NewSizeController(sizeRepo)
+	sizeController := controllers.NewSizeController(sizeRepo, roomingHouseRepo)
 
-	size := e.Group("/size")
+	size := e.Group("/sizes")
 	size.GET("", sizeController.FindAllSizes, middlewares.JWTAuth)
 	size.GET("/:id", sizeController.FindSizeByID, middlewares.JWTAuth)
 	size.POST("", sizeController.CreateSize, middlewares.JWTAuth, middlewares.Authz)

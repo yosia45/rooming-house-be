@@ -13,12 +13,13 @@ import (
 )
 
 type UserController struct {
-	ownerRepo repositories.OwnerRepository
-	adminRepo repositories.AdminRepository
+	ownerRepo        repositories.OwnerRepository
+	adminRepo        repositories.AdminRepository
+	roomingHouseRepo repositories.RoomingHouseRepository
 }
 
-func NewUserController(ownerRepo repositories.OwnerRepository, adminRepo repositories.AdminRepository) *UserController {
-	return &UserController{ownerRepo: ownerRepo, adminRepo: adminRepo}
+func NewUserController(ownerRepo repositories.OwnerRepository, adminRepo repositories.AdminRepository, roomingHouseRepo repositories.RoomingHouseRepository) *UserController {
+	return &UserController{ownerRepo: ownerRepo, adminRepo: adminRepo, roomingHouseRepo: roomingHouseRepo}
 }
 
 func (uc *UserController) RegisterOwner(c echo.Context) error {
@@ -60,6 +61,7 @@ func (uc *UserController) RegisterOwner(c echo.Context) error {
 }
 
 func (uc *UserController) RegisterAdmin(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
 	var admin models.AdminRegisterBody
 	if err := c.Bind(&admin); err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid input"))
@@ -83,6 +85,15 @@ func (uc *UserController) RegisterAdmin(c echo.Context) error {
 
 	if admin.RoomingHouseID == uuid.Nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("rooming house ID is required"))
+	}
+
+	roomingHouse, err := uc.roomingHouseRepo.FindRoomingHouseByID(admin.RoomingHouseID, userPayload.UserID, userPayload.Role)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("rooming house not found"))
+	}
+
+	if roomingHouse.ID != userPayload.RoomingHouseID {
+		return utils.HandlerError(c, utils.NewUnauthorizedError("you are not the owner of this rooming house"))
 	}
 
 	newAdmin := models.Admin{

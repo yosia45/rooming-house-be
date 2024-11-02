@@ -5,7 +5,6 @@ import (
 	"os"
 	"rooming-house-cms-be/cli"
 	"rooming-house-cms-be/config"
-	"rooming-house-cms-be/seeders"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -19,9 +18,9 @@ func main() {
 
 	config.InitDB()
 
-	seeders.SeedPeriod(config.DB)
-	seeders.SeedFacility(config.DB)
-	seeders.SeedTransactionCategory(config.DB)
+	// seeders.SeedPeriod(config.DB)
+	// seeders.SeedFacility(config.DB)
+	// seeders.SeedTransactionCategory(config.DB)
 
 	port := os.Getenv("PORT")
 

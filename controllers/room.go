@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"rooming-house-cms-be/models"
 	"rooming-house-cms-be/repositories"
@@ -8,15 +9,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 type RoomController struct {
 	roomRepo         repositories.RoomRepository
 	roomFacilityRepo repositories.RoomFacilityRepository
+	roomingHouseRepo repositories.RoomingHouseRepository
+	sizeRepo         repositories.SizeRepository
+	packageRepo      repositories.PricingPackageRepository
+	facilityRepo     repositories.FacilityRepository
 }
 
-func NewRoomController(roomRepo repositories.RoomRepository, roomFacilityRepo repositories.RoomFacilityRepository) *RoomController {
-	return &RoomController{roomRepo: roomRepo, roomFacilityRepo: roomFacilityRepo}
+func NewRoomController(roomRepo repositories.RoomRepository, roomFacilityRepo repositories.RoomFacilityRepository, roomingHouseRepo repositories.RoomingHouseRepository, sizeRepo repositories.SizeRepository, packageRepo repositories.PricingPackageRepository, facilityRepo repositories.FacilityRepository) *RoomController {
+	return &RoomController{roomRepo: roomRepo, roomFacilityRepo: roomFacilityRepo, roomingHouseRepo: roomingHouseRepo, sizeRepo: sizeRepo, facilityRepo: facilityRepo, packageRepo: packageRepo}
 }
 
 func (rc *RoomController) CreateRoom(c echo.Context) error {
@@ -39,18 +45,6 @@ func (rc *RoomController) CreateRoom(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("max capacity is required"))
 	}
 
-	if roomBody.SizeID == uuid.Nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("size id is required"))
-	}
-
-	if roomBody.PackageID == uuid.Nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("pricing id is required"))
-	}
-
-	if len(roomBody.RoomFacilities) == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("facilities is required"))
-	}
-
 	if roomBody.RoomingHouseID == uuid.Nil && userPayload.Role == "owner" {
 		return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
 	}
@@ -61,6 +55,68 @@ func (rc *RoomController) CreateRoom(c echo.Context) error {
 		roomingHouseID = roomBody.RoomingHouseID
 	} else {
 		roomingHouseID = userPayload.RoomingHouseID
+	}
+
+	roomingHouse, err := rc.roomingHouseRepo.FindRoomingHouseByID(roomBody.RoomingHouseID, userPayload.UserID, userPayload.Role)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("rooming house not found"))
+		}
+		return utils.HandlerError(c, utils.NewInternalError("failed to get rooming house"))
+	}
+
+	if roomBody.SizeID == uuid.Nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("size id is required"))
+	}
+
+	size, err := rc.sizeRepo.FindSizeByID(roomBody.SizeID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("size not found"))
+		}
+		return utils.HandlerError(c, utils.NewInternalError("failed to get size"))
+	}
+
+	if size.RoomingHouseID != roomingHouseID {
+		return utils.HandlerError(c, utils.NewBadRequestError("size not from this rooming house"))
+	}
+
+	if roomBody.PackageID == uuid.Nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("package id is required"))
+	}
+
+	packagePricing, err := rc.packageRepo.FindPricingPackageByID(roomBody.PackageID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("pricing package not found"))
+		}
+		return utils.HandlerError(c, utils.NewInternalError("failed to get pricing package"))
+	}
+
+	if packagePricing.RoomingHouseID != roomingHouseID {
+		return utils.HandlerError(c, utils.NewBadRequestError("pricing package not from this rooming house"))
+	}
+
+	if len(roomBody.RoomFacilities) == 0 {
+		return utils.HandlerError(c, utils.NewBadRequestError("facilities is required"))
+	}
+
+	if roomBody.Floor > roomingHouse.FloorTotal {
+		return utils.HandlerError(c, utils.NewBadRequestError("floor is greater than floor total"))
+	}
+
+	for _, roomFacilityID := range roomBody.RoomFacilities {
+		facility, err := rc.facilityRepo.GetFacilityByID(roomFacilityID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return utils.HandlerError(c, utils.NewBadRequestError("facility not found"))
+			}
+			return utils.HandlerError(c, utils.NewInternalError("failed to get facility"))
+		}
+
+		if !facility.IsRoom {
+			return utils.HandlerError(c, utils.NewBadRequestError("facility is not room facility"))
+		}
 	}
 
 	newRoom := models.Room{
@@ -93,22 +149,6 @@ func (rc *RoomController) CreateRoom(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]string{"message": "success to create room"})
 }
 
-// func (rc *RoomController) GetRoomsByRoomingHouseID(c echo.Context) error {
-// 	roomingHouseID := c.Param("id")
-
-// 	parsedRoomingHouseID, err := uuid.Parse(roomingHouseID)
-// 	if err != nil {
-// 		return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
-// 	}
-
-// 	rooms, err := rc.roomRepo.FindRoomsByRoomingHouseID(parsedRoomingHouseID)
-// 	if err != nil {
-// 		return utils.HandlerError(c, utils.NewInternalError("failed to get rooms"))
-// 	}
-
-// 	return c.JSON(http.StatusOK, rooms)
-// }
-
 func (rc *RoomController) GetRoomByID(c echo.Context) error {
 	roomID := c.Param("id")
 
@@ -126,10 +166,16 @@ func (rc *RoomController) GetRoomByID(c echo.Context) error {
 }
 
 func (rc *RoomController) GetAllRooms(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+
 	roomingHouseID := c.QueryParam("rooming_house_id")
 
-	if roomingHouseID == "" {
-		roomingHouseID = uuid.Nil.String()
+	if userPayload.Role == "admin" {
+		roomingHouseID = userPayload.RoomingHouseID.String()
+	} else {
+		if roomingHouseID == "" {
+			roomingHouseID = uuid.Nil.String()
+		}
 	}
 
 	parsedRoomingHouseID, err := uuid.Parse(roomingHouseID)
@@ -146,6 +192,7 @@ func (rc *RoomController) GetAllRooms(c echo.Context) error {
 }
 
 func (rc *RoomController) UpdateRoomByID(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
 	roomID := c.Param("id")
 	var roomBody models.UpdateRoomBody
 
@@ -182,8 +229,64 @@ func (rc *RoomController) UpdateRoomByID(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid room id"))
 	}
 
-	if _, err := rc.roomRepo.FindRoomByID(parsedRoomID); err != nil {
+	roomByID, err := rc.roomRepo.FindRoomByID(parsedRoomID)
+	if err != nil {
 		return utils.HandlerError(c, utils.NewInternalError("room not found"))
+	}
+
+	if len(roomByID.Tenants) > 1 && roomByID.MaxCapacity > roomBody.MaxCapacity {
+		return utils.HandlerError(c, utils.NewBadRequestError(fmt.Sprintf("max capacity is less than current tenant count (%d)", len(roomByID.Tenants))))
+	}
+
+	roomingHouse, err := rc.roomingHouseRepo.FindRoomingHouseByID(roomByID.RoomingHouseID, userPayload.UserID, userPayload.Role)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("rooming house not found"))
+		}
+
+		return utils.HandlerError(c, utils.NewInternalError("failed to get rooming house"))
+	}
+
+	if roomingHouse.FloorTotal < roomBody.Floor {
+		return utils.HandlerError(c, utils.NewBadRequestError("floor is greater than floor total"))
+	}
+
+	size, err := rc.sizeRepo.FindSizeByID(roomBody.SizeID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("size not found"))
+		}
+		return utils.HandlerError(c, utils.NewInternalError("failed to get size"))
+	}
+
+	if size.RoomingHouseID != roomByID.RoomingHouseID {
+		return utils.HandlerError(c, utils.NewBadRequestError("size not from this rooming house"))
+	}
+
+	packagePricing, err := rc.packageRepo.FindPricingPackageByID(roomBody.PackageID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.HandlerError(c, utils.NewBadRequestError("pricing package not found"))
+		}
+		return utils.HandlerError(c, utils.NewInternalError("failed to get pricing package"))
+	}
+
+	if packagePricing.RoomingHouseID != roomByID.RoomingHouseID {
+		return utils.HandlerError(c, utils.NewBadRequestError("pricing package not from this rooming house"))
+	}
+
+	for _, roomFacilityID := range roomBody.RoomFacilities {
+		facility, err := rc.facilityRepo.GetFacilityByID(roomFacilityID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return utils.HandlerError(c, utils.NewBadRequestError("facility not found"))
+			}
+			return utils.HandlerError(c, utils.NewInternalError("failed to get facility"))
+		}
+
+		if !facility.IsRoom {
+			return utils.HandlerError(c, utils.NewBadRequestError("facility is not room facility"))
+		}
 	}
 
 	updatedRoom := models.Room{

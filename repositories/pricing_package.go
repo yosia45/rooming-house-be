@@ -9,8 +9,8 @@ import (
 
 type PricingPackageRepository interface {
 	CreatePricingPackage(pricingPackage *models.PricingPackage) error
-	FindPricingPackageByID(id uuid.UUID) (*models.PricingPackage, error)
-	FindAllPricingPackages() (*[]models.PricingPackage, error)
+	FindPricingPackageByID(packageID uuid.UUID) (*models.PricingPackage, error)
+	FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.PackageResponse, error)
 	UpdatePricingPackageByID(pricingPackage *models.PricingPackage, id uuid.UUID) error
 	DeletePricingPackageByID(id uuid.UUID) error
 }
@@ -30,20 +30,45 @@ func (r *pricingPackageRepository) CreatePricingPackage(pricingPackage *models.P
 	return nil
 }
 
-func (r *pricingPackageRepository) FindPricingPackageByID(id uuid.UUID) (*models.PricingPackage, error) {
+func (r *pricingPackageRepository) FindPricingPackageByID(packageID uuid.UUID) (*models.PricingPackage, error) {
 	var pricingPackage models.PricingPackage
-	if err := r.db.Where("id = ?", id).First(&pricingPackage).Error; err != nil {
+
+	if err := r.db.Where("id = ?", packageID).First(&pricingPackage).Error; err != nil {
 		return nil, err
 	}
 	return &pricingPackage, nil
 }
 
-func (r *pricingPackageRepository) FindAllPricingPackages() (*[]models.PricingPackage, error) {
+func (r *pricingPackageRepository) FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.PackageResponse, error) {
 	var pricingPackages []models.PricingPackage
-	if err := r.db.Find(&pricingPackages).Error; err != nil {
-		return nil, err
+
+	for _, id := range roomingHouseIDs {
+		var temp []models.PricingPackage
+		if err := r.db.Preload("PeriodPackages").Preload("PeriodPackages.Period").Where("rooming_house_id = ?", id).Find(&temp).Error; err != nil {
+			return nil, err
+		}
+		pricingPackages = append(pricingPackages, temp...)
 	}
-	return &pricingPackages, nil
+
+	var responses []models.PackageResponse
+
+	for _, pkg := range pricingPackages {
+		response := models.PackageResponse{
+			ID:             pkg.ID,
+			Name:           pkg.Name,
+			RoomingHouseID: pkg.RoomingHouseID,
+			Prices:         make(map[string]float64),
+		}
+
+		// Memetakan harga berdasarkan unit periode
+		for _, periodPackage := range pkg.PeriodPackages {
+			response.Prices[periodPackage.Period.Unit] = periodPackage.Price
+		}
+
+		responses = append(responses, response)
+	}
+
+	return &responses, nil
 }
 
 func (r *pricingPackageRepository) UpdatePricingPackageByID(pricingPackage *models.PricingPackage, id uuid.UUID) error {

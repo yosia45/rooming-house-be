@@ -12,12 +12,16 @@ import (
 func RoomRoutes(e *echo.Echo) {
 	roomRepo := repositories.NewRoomRepository(config.DB)
 	roomFacilityRepo := repositories.NewRoomFacilityRepository(config.DB)
+	roomingHouseRepo := repositories.NewRoomingHouseRepository(config.DB)
+	sizeRepo := repositories.NewSizeRepository(config.DB)
+	packageRepo := repositories.NewPricingPackageRepository(config.DB)
+	facilityRepo := repositories.NewFacilityRepository(config.DB)
 
-	roomController := controllers.NewRoomController(roomRepo, roomFacilityRepo)
+	roomController := controllers.NewRoomController(roomRepo, roomFacilityRepo, roomingHouseRepo, sizeRepo, packageRepo, facilityRepo)
 
-	room := e.Group("/room")
+	room := e.Group("/rooms")
 	room.POST("", roomController.CreateRoom, middlewares.JWTAuth)
-	// room.GET("", roomController.GetRoomsByRoomingHouseID, middlewares.JWTAuth)
+	room.GET("", roomController.GetAllRooms, middlewares.JWTAuth)
 	room.GET("/:id", roomController.GetRoomByID, middlewares.JWTAuth)
 	room.PUT("/:id", roomController.UpdateRoomByID, middlewares.JWTAuth)
 	room.DELETE("/:id", roomController.DeleteRoomByID, middlewares.JWTAuth, middlewares.Authz)

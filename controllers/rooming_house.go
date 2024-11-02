@@ -97,12 +97,14 @@ func (rhc *RoomingHouseController) GetAllRoomingHouse(c echo.Context) error {
 }
 
 func (rhc *RoomingHouseController) GetRoomingHouseByID(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+
 	roomingHouseID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house ID"))
 	}
 
-	roomingHouse, err := rhc.roomingHouseRepo.FindRoomingHouseByID(roomingHouseID)
+	roomingHouse, err := rhc.roomingHouseRepo.FindRoomingHouseByID(roomingHouseID, userPayload.UserID, userPayload.Role)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewNotFoundError("rooming house not found"))
 	}
@@ -178,5 +180,5 @@ func (rhc *RoomingHouseController) DeleteRoomingHouseByID(c echo.Context) error 
 		return utils.HandlerError(c, utils.NewInternalError("failed to delete rooming house"))
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, "rooming house deleted")
 }

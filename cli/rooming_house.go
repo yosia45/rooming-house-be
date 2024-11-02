@@ -16,7 +16,7 @@ func RoomingHouseRoutes(e *echo.Echo) {
 
 	roomingHouseController := controllers.NewRoomingHouseController(roomingHouseRepo, roomingHouseFacilityRepo, facilityRepo)
 
-	roomingHouse := e.Group("/roominghouse")
+	roomingHouse := e.Group("/roominghouses")
 	roomingHouse.GET("/:id", roomingHouseController.GetRoomingHouseByID, middlewares.JWTAuth)
 	roomingHouse.GET("", roomingHouseController.GetAllRoomingHouse, middlewares.JWTAuth)
 	roomingHouse.POST("", roomingHouseController.CreateRoomingHouse, middlewares.JWTAuth, middlewares.Authz)

@@ -12,7 +12,8 @@ import (
 func Auth(e *echo.Echo) {
 	adminRepo := repositories.NewAdminRepository(config.DB)
 	ownerRepo := repositories.NewOwnerRepository(config.DB)
-	userController := controllers.NewUserController(ownerRepo, adminRepo)
+	roomingHouseRepo := repositories.NewRoomingHouseRepository(config.DB)
+	userController := controllers.NewUserController(ownerRepo, adminRepo, roomingHouseRepo)
 
 	e.POST("/login", userController.Login)
 	e.POST("/registerowner", userController.RegisterOwner)

@@ -41,6 +41,16 @@ type AddTenantBody struct {
 	TenantAdditionalIDs    []uuid.UUID `json:"tenant_additional_ids"`
 }
 
+type GetAllTenantResponse struct {
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Gender         string    `json:"gender"`
+	StartDate      time.Time `json:"start_date"`
+	EndDate        time.Time `json:"end_date"`
+	RoomID         uuid.UUID `json:"room_id"`
+	RoomingHouseID uuid.UUID `json:"rooming_house_id"`
+}
+
 func (t *Tenant) BeforeCreate(tx *gorm.DB) (err error) {
 	t.ID = uuid.New()
 	t.CreatedAt = time.Now()

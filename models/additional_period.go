@@ -12,6 +12,7 @@ type AdditionalPeriod struct {
 	AdditionalPriceID uuid.UUID `json:"additional_price_id" gorm:"not null;size:191"`
 	PeriodID          uuid.UUID `json:"period_id" gorm:"not null;size:191"`
 	Price             float64   `json:"price" gorm:"not null"`
+	Period            Period    `json:"period" gorm:"foreignKey:PeriodID"`
 }
 
 type AddAdditionalPeriodBody struct {

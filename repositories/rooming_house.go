@@ -10,8 +10,8 @@ import (
 
 type RoomingHouseRepository interface {
 	CreateRoomingHouse(roomingHouse *models.RoomingHouse) error
-	FindRoomingHouseByID(id uuid.UUID) (*models.RoomingHouse, error)
-	FindAllRoomingHouse(roomingHouseID uuid.UUID, userID uuid.UUID, role string) ([]models.RoomingHouse, error)
+	FindRoomingHouseByID(roomingHouseID uuid.UUID, userID uuid.UUID, role string) (*models.RoomingHouseByIDResponse, error)
+	FindAllRoomingHouse(roomingHouseID uuid.UUID, userID uuid.UUID, role string) ([]models.AllRoomingHouseResponse, error)
 	UpdateRoomingHouse(roomingHouse *models.RoomingHouse, id uuid.UUID) error
 	DeleteRoomingHouse(id uuid.UUID) error
 }
@@ -31,31 +31,77 @@ func (r *roomingHouseRepository) CreateRoomingHouse(roomingHouse *models.Rooming
 	return nil
 }
 
-func (r *roomingHouseRepository) FindRoomingHouseByID(id uuid.UUID) (*models.RoomingHouse, error) {
+func (r *roomingHouseRepository) FindRoomingHouseByID(roomingHouseID uuid.UUID, userID uuid.UUID, role string) (*models.RoomingHouseByIDResponse, error) {
 	var roomingHouse models.RoomingHouse
-	if err := r.db.Preload("Transactions").
-		Preload("Facilities").
-		Preload("Rooms").
-		Preload("Admin").
-		Where("id = ?", id).
-		First(&roomingHouse).Error; err != nil {
-		return nil, err
-	}
-	return &roomingHouse, nil
-}
 
-func (r *roomingHouseRepository) FindAllRoomingHouse(roomingHouseID uuid.UUID, userID uuid.UUID, role string) ([]models.RoomingHouse, error) {
-	var roomingHouses []models.RoomingHouse
 	if role == "owner" {
-		if err := r.db.Find(&roomingHouses).Where("owner_id = ?", userID).Error; err != nil {
+		if err := r.db.Preload("Transactions").
+			Preload("Facilities").
+			Preload("Rooms").
+			Preload("Admin").
+			Where("id = ? AND owner_id = ?", roomingHouseID, userID).
+			First(&roomingHouse).Error; err != nil {
 			return nil, err
 		}
 	} else {
-		if err := r.db.Find(&roomingHouses).Where("id = ?", roomingHouseID).Error; err != nil {
+		if err := r.db.Preload("Transactions").
+			Preload("Facilities").
+			Preload("Rooms").
+			Preload("Admin").
+			Where("id = ?", roomingHouseID).
+			First(&roomingHouse).Error; err != nil {
 			return nil, err
 		}
 	}
-	return roomingHouses, nil
+
+	roomingHouseResponse := models.RoomingHouseByIDResponse{
+		ID:          roomingHouse.ID,
+		Name:        roomingHouse.Name,
+		Description: roomingHouse.Description,
+		Address:     roomingHouse.Address,
+		FloorTotal:  roomingHouse.FloorTotal,
+		OwnerID:     roomingHouse.OwnerID,
+		Admin: models.AdminResponse{
+			ID:             roomingHouse.Admin.ID,
+			Username:       roomingHouse.Admin.Username,
+			Role:           roomingHouse.Admin.Role,
+			RoomingHouseID: roomingHouse.Admin.RoomingHouseID,
+		},
+		Transactions: roomingHouse.Transactions,
+		Facilities:   roomingHouse.Facilities,
+		Rooms:        roomingHouse.Rooms,
+	}
+
+	return &roomingHouseResponse, nil
+}
+
+func (r *roomingHouseRepository) FindAllRoomingHouse(roomingHouseID uuid.UUID, userID uuid.UUID, role string) ([]models.AllRoomingHouseResponse, error) {
+	var roomingHouses []models.RoomingHouse
+	if role == "owner" {
+		if err := r.db.Where("owner_id = ?", userID).Find(&roomingHouses).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := r.db.Where("id = ?", roomingHouseID).Find(&roomingHouses).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	var roomingHouseResponses []models.AllRoomingHouseResponse
+	for _, roomingHouse := range roomingHouses {
+		roomingHouseResponse := models.AllRoomingHouseResponse{
+			ID:          roomingHouse.ID,
+			Name:        roomingHouse.Name,
+			Description: roomingHouse.Description,
+			Address:     roomingHouse.Address,
+			FloorTotal:  roomingHouse.FloorTotal,
+			OwnerID:     roomingHouse.OwnerID,
+		}
+
+		roomingHouseResponses = append(roomingHouseResponses, roomingHouseResponse)
+	}
+
+	return roomingHouseResponses, nil
 }
 
 func (r *roomingHouseRepository) UpdateRoomingHouse(roomingHouse *models.RoomingHouse, id uuid.UUID) error {

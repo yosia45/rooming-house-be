@@ -11,11 +11,12 @@ import (
 )
 
 type SizeController struct {
-	sizeRepo repositories.SizeRepository
+	sizeRepo         repositories.SizeRepository
+	roomingHouseRepo repositories.RoomingHouseRepository
 }
 
-func NewSizeController(sizeRepo repositories.SizeRepository) *SizeController {
-	return &SizeController{sizeRepo: sizeRepo}
+func NewSizeController(sizeRepo repositories.SizeRepository, roomingHouseRepo repositories.RoomingHouseRepository) *SizeController {
+	return &SizeController{sizeRepo: sizeRepo, roomingHouseRepo: roomingHouseRepo}
 }
 
 func (sc *SizeController) CreateSize(c echo.Context) error {
@@ -36,6 +37,10 @@ func (sc *SizeController) CreateSize(c echo.Context) error {
 
 	if sizeBody.Width == 0 {
 		return utils.HandlerError(c, utils.NewBadRequestError("width is required"))
+	}
+
+	if userPayload.Role == "owner" && sizeBody.RoomingHouseID == uuid.Nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
 	}
 
 	var roomingHouseID uuid.UUID
@@ -77,9 +82,26 @@ func (sc *SizeController) FindSizeByID(c echo.Context) error {
 }
 
 func (sc *SizeController) FindAllSizes(c echo.Context) error {
-	sizes, err := sc.sizeRepo.FindAllSizes()
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+
+	var roomingHouseIDs []uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
+	} else {
+		IDs, err := sc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewInternalError("failed to get rooming house"))
+		}
+
+		for _, roomingHouseID := range IDs {
+			roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+		}
+	}
+
+	sizes, err := sc.sizeRepo.FindAllSizes(roomingHouseIDs)
 	if err != nil {
-		return utils.HandlerError(c, utils.NewNotFoundError("size not found"))
+		return utils.HandlerError(c, utils.NewInternalError("failed to get sizes"))
 	}
 
 	return c.JSON(http.StatusOK, sizes)

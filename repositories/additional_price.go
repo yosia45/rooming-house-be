@@ -9,8 +9,8 @@ import (
 
 type AdditionalPriceRepository interface {
 	CreateAdditionalPrice(additionalPrice *models.AdditionalPrice) error
-	FindAdditionalPriceByID(id uuid.UUID) (*models.AdditionalPrice, error)
-	FindAllAdditionalPrices() (*[]models.AdditionalPrice, error)
+	FindAdditionalPriceByID(id uuid.UUID) (*models.AdditionalPriceResponse, error)
+	FindAllAdditionalPrices(roomingHouseIDs []uuid.UUID) (*[]models.AdditionalPriceResponse, error)
 	UpdateAdditionalPriceByID(additionalPrice *models.AdditionalPrice, id uuid.UUID) error
 	DeleteAdditionalPriceByID(id uuid.UUID) error
 }
@@ -30,20 +30,55 @@ func (r *additionalPriceRepository) CreateAdditionalPrice(additionalPrice *model
 	return nil
 }
 
-func (r *additionalPriceRepository) FindAdditionalPriceByID(id uuid.UUID) (*models.AdditionalPrice, error) {
+func (r *additionalPriceRepository) FindAdditionalPriceByID(id uuid.UUID) (*models.AdditionalPriceResponse, error) {
 	var additionalPrice models.AdditionalPrice
-	if err := r.db.Where("id = ?", id).First(&additionalPrice).Error; err != nil {
+	if err := r.db.Preload("AdditionalPeriods").Preload("AdditionalPeriods.Period").Where("id = ?", id).First(&additionalPrice).Error; err != nil {
 		return nil, err
 	}
-	return &additionalPrice, nil
+
+	response := models.AdditionalPriceResponse{
+		ID:             additionalPrice.ID,
+		Name:           additionalPrice.Name,
+		RoomingHouseID: additionalPrice.RoomingHouseID,
+		Prices:         make(map[string]float64),
+	}
+
+	for _, period := range additionalPrice.AdditionalPeriods {
+		response.Prices[period.Period.Name] = period.Price
+	}
+
+	return &response, nil
 }
 
-func (r *additionalPriceRepository) FindAllAdditionalPrices() (*[]models.AdditionalPrice, error) {
+func (r *additionalPriceRepository) FindAllAdditionalPrices(roomingHouseIDs []uuid.UUID) (*[]models.AdditionalPriceResponse, error) {
 	var additionalPrices []models.AdditionalPrice
-	if err := r.db.Find(&additionalPrices).Error; err != nil {
-		return nil, err
+
+	for _, id := range roomingHouseIDs {
+		var temp []models.AdditionalPrice
+		if err := r.db.Preload("AdditionalPeriods").Preload("AdditionalPeriods.Period").Where("rooming_house_id = ?", id).Find(&temp).Error; err != nil {
+			return nil, err
+		}
+		additionalPrices = append(additionalPrices, temp...)
 	}
-	return &additionalPrices, nil
+
+	var responses []models.AdditionalPriceResponse
+
+	for _, price := range additionalPrices {
+		response := models.AdditionalPriceResponse{
+			ID:             price.ID,
+			Name:           price.Name,
+			RoomingHouseID: price.RoomingHouseID,
+			Prices:         make(map[string]float64),
+		}
+
+		for _, period := range price.AdditionalPeriods {
+			response.Prices[period.Period.Name] = period.Price
+		}
+
+		responses = append(responses, response)
+	}
+
+	return &responses, nil
 }
 
 func (r *additionalPriceRepository) UpdateAdditionalPriceByID(additionalPrice *models.AdditionalPrice, id uuid.UUID) error {

@@ -1,224 +1,236 @@
 package controllers
 
-import (
-	"rooming-house-cms-be/models"
-	"rooming-house-cms-be/repositories"
-	"rooming-house-cms-be/utils"
-	"time"
+// import (
+// 	"rooming-house-cms-be/models"
+// 	"rooming-house-cms-be/repositories"
+// 	"rooming-house-cms-be/utils"
+// 	"time"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-)
+// 	"github.com/google/uuid"
+// 	"github.com/labstack/echo/v4"
+// )
 
-type TransactionController struct {
-	transactionRepo         repositories.TransactionRepository
-	transactionCategoryRepo repositories.TransactionCategoryRepository
-	tenantRepo              repositories.TenantRepository
-	roomRepo                repositories.RoomRepository
-	periodPackageRepo       repositories.PeriodPackageRepository
-	periodRepo              repositories.PeriodRepository
-}
+// type TransactionController struct {
+// 	transactionRepo         repositories.TransactionRepository
+// 	transactionCategoryRepo repositories.TransactionCategoryRepository
+// 	tenantRepo              repositories.TenantRepository
+// 	roomRepo                repositories.RoomRepository
+// 	periodPackageRepo       repositories.PeriodPackageRepository
+// 	periodRepo              repositories.PeriodRepository
+// }
 
-func NewTransactionController(transactionRepo repositories.TransactionRepository, transactionCategoryRepo repositories.TransactionCategoryRepository, tenantRepo repositories.TenantRepository, periodPackageRepo repositories.PeriodPackageRepository, periodRepo repositories.PeriodRepository, roomRepo repositories.RoomRepository) *TransactionController {
-	return &TransactionController{transactionRepo: transactionRepo, transactionCategoryRepo: transactionCategoryRepo, tenantRepo: tenantRepo, periodPackageRepo: periodPackageRepo, periodRepo: periodRepo, roomRepo: roomRepo}
-}
+// func NewTransactionController(transactionRepo repositories.TransactionRepository, transactionCategoryRepo repositories.TransactionCategoryRepository, tenantRepo repositories.TenantRepository, periodPackageRepo repositories.PeriodPackageRepository, periodRepo repositories.PeriodRepository, roomRepo repositories.RoomRepository) *TransactionController {
+// 	return &TransactionController{transactionRepo: transactionRepo, transactionCategoryRepo: transactionCategoryRepo, tenantRepo: tenantRepo, periodPackageRepo: periodPackageRepo, periodRepo: periodRepo, roomRepo: roomRepo}
+// }
 
-func (tc *TransactionController) CreateTransaction(c echo.Context) error {
-	var transactionBody models.AddTransactionBody
-	userPayload := c.Get("userPayload").(*models.JWTPayload)
+// func (tc *TransactionController) CreateTransaction(c echo.Context) error {
+// 	var transactionBody models.AddTransactionBody
+// 	userPayload := c.Get("userPayload").(*models.JWTPayload)
 
-	if err := c.Bind(&transactionBody); err != nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("invalid input"))
-	}
+// 	if err := c.Bind(&transactionBody); err != nil {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("invalid input"))
+// 	}
 
-	if transactionBody.Day == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("day is required"))
-	}
+// 	if transactionBody.Day == 0 {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("day is required"))
+// 	}
 
-	if transactionBody.Month == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("month is required"))
-	}
+// 	if transactionBody.Month == 0 {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("month is required"))
+// 	}
 
-	if transactionBody.Year == 0 {
-		return utils.HandlerError(c, utils.NewBadRequestError("year is required"))
-	}
+// 	if transactionBody.Year == 0 {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("year is required"))
+// 	}
 
-	if transactionBody.TransactionCategoryID == uuid.Nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("transaction category id is required"))
-	}
+// 	if transactionBody.TransactionCategoryID == uuid.Nil {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("transaction category id is required"))
+// 	}
 
-	if userPayload.Role == "owner" {
-		if transactionBody.RoomingHouseID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
-		}
-	}
+// 	if userPayload.Role == "owner" {
+// 		if transactionBody.RoomingHouseID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
+// 		}
+// 	}
 
-	if transactionBody.IsRoom {
-		if transactionBody.RoomID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("room id is required"))
-		}
-	}
+// 	if transactionBody.IsRoom {
+// 		if transactionBody.RoomID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("room id is required"))
+// 		}
+// 	}
 
-	var amount float64
+// 	var amount float64
 
-	transactionCategory, err := tc.transactionCategoryRepo.FindTransactionCategoryByID(transactionBody.TransactionCategoryID)
-	if err != nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("transaction category not found"))
-	}
+// 	transactionCategory, err := tc.transactionCategoryRepo.FindTransactionCategoryByID(transactionBody.TransactionCategoryID)
+// 	if err != nil {
+// 		return utils.HandlerError(c, utils.NewBadRequestError("transaction category not found"))
+// 	}
 
-	if transactionCategory.Name != "Rent" {
-		if transactionBody.TenantID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
-		}
+// 	if transactionCategory.Name != "Rent" {
+// 		if transactionBody.TenantID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
+// 		}
 
-		if transactionBody.Amount == 0 {
-			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
-		}
+// 		if transactionBody.Amount == 0 {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
+// 		}
 
-		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
-		}
+// 		var roomingHouseIDs []uuid.UUID
 
-		room, err := tc.roomRepo.FindRoomByID(tenant.RoomID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
-		}
+// 		roomingHouseIDs = append(roomingHouseIDs, transactionBody.RoomingHouseID)
 
-		periodPackage, err := tc.periodPackageRepo.FindPeriodPackageByPeriodIDPackageID(tenant.PeriodID, room.PricingPackage.ID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("period package not found"))
-		}
+// 		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID, roomingHouseIDs)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
+// 		}
 
-		if len(tenant.AdditionalPrices) > 0 {
-			for _, additionalPrice := range tenant.AdditionalPrices {
-				amount += additionalPrice.AdditionalPeriods[0].Price
-			}
-		}
+// 		room, err := tc.roomRepo.FindRoomByID(tenant.Room.ID, tenant.RoomingHouse.ID, userPayload.UserID, userPayload.Role)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
+// 		}
 
-		amount += periodPackage.Price * float64(tenant.RegularPaymentDuration)
+// 		periodPackage, err := tc.periodPackageRepo.FindPeriodPackageByPeriodIDPackageID(tenant.Period.ID, room.PricingPackage.ID)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("period package not found"))
+// 		}
 
-		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
-			Day:                   transactionBody.Day,
-			Month:                 transactionBody.Month,
-			Year:                  transactionBody.Year,
-			Amount:                amount,
-			TransactionCategoryID: transactionBody.TransactionCategoryID,
-			TenantID:              tenant.ID,
-			RoomID:                tenant.RoomID,
-			RoomingHouseID:        tenant.RoomingHouseID,
-		}); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
-		}
+// 		// if len(tenant.AdditionalPrices) > 0 {
+// 		// 	for _, additionalPrice := range tenant.AdditionalPrices {
+// 		// 		amount += additionalPrice.AdditionalPeriods[0].Price
+// 		// 	}
+// 		// }
 
-		var endDate time.Time
+// 		amount += periodPackage.Price * float64(tenant.RegularPaymentDuration)
 
-		period, err := tc.periodRepo.FindPeriodByID(tenant.PeriodID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("period not found"))
-		}
+// 		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
+// 			Day:                   transactionBody.Day,
+// 			Month:                 transactionBody.Month,
+// 			Year:                  transactionBody.Year,
+// 			Amount:                amount,
+// 			TransactionCategoryID: transactionBody.TransactionCategoryID,
+// 			TenantID:              tenant.ID,
+// 			RoomID:                tenant.Room.ID,
+// 			RoomingHouseID:        tenant.Room.RoomingHouseID,
+// 		}); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
+// 		}
 
-		if period.Name == "Monthly" {
-			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, tenant.RegularPaymentDuration, 0)
-		} else if period.Name == "Annually" {
-			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(tenant.RegularPaymentDuration, 0, 0)
-		} else if period.Name == "Daily" {
-			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, 0, tenant.RegularPaymentDuration)
-		} else if period.Name == "Weekly" {
-			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, 0, tenant.RegularPaymentDuration*7)
-		}
+// 		var endDate time.Time
 
-		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
-			StartDate: time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC),
-			EndDate:   endDate,
-		}, tenant.ID); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
-		}
-	} else if transactionCategory.Name == "Deposit" {
-		if transactionBody.TenantID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
-		}
+// 		period, err := tc.periodRepo.FindPeriodByID(tenant.Period.ID)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("period not found"))
+// 		}
 
-		if transactionBody.Amount == 0 {
-			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
-		}
+// 		if period.Name == "Monthly" {
+// 			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, tenant.RegularPaymentDuration, 0)
+// 		} else if period.Name == "Annually" {
+// 			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(tenant.RegularPaymentDuration, 0, 0)
+// 		} else if period.Name == "Daily" {
+// 			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, 0, tenant.RegularPaymentDuration)
+// 		} else if period.Name == "Weekly" {
+// 			endDate = time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC).AddDate(0, 0, tenant.RegularPaymentDuration*7)
+// 		}
 
-		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
-		}
+// 		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
+// 			// StartDate: &time.Time(time.Date(transactionBody.Year, time.Month(transactionBody.Month), transactionBody.Day, 0, 0, 0, 0, time.UTC)),
+// 			EndDate: &endDate,
+// 		}, tenant.ID); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
+// 		}
+// 	} else if transactionCategory.Name == "Deposit" {
+// 		if transactionBody.TenantID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
+// 		}
 
-		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
-			Day:                   transactionBody.Day,
-			Month:                 transactionBody.Month,
-			Year:                  transactionBody.Year,
-			Amount:                transactionBody.Amount,
-			TransactionCategoryID: transactionBody.TransactionCategoryID,
-			TenantID:              transactionBody.TenantID,
-			RoomingHouseID:        tenant.RoomingHouseID,
-		}); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
-		}
+// 		if transactionBody.Amount == 0 {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
+// 		}
 
-		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
-			IsDepositPaid: true,
-		}, tenant.ID); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
-		}
-	} else if transactionCategory.Name == "Deposit Payback" {
-		if transactionBody.TenantID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
-		}
+// 		var roomingHouseIDs []uuid.UUID
 
-		if transactionBody.Amount == 0 {
-			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
-		}
+// 		roomingHouseIDs = append(roomingHouseIDs, transactionBody.RoomingHouseID)
 
-		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
-		}
+// 		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID, roomingHouseIDs)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
+// 		}
 
-		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
-			Day:                   transactionBody.Day,
-			Month:                 transactionBody.Month,
-			Year:                  transactionBody.Year,
-			Amount:                transactionBody.Amount,
-			TransactionCategoryID: transactionBody.TransactionCategoryID,
-			TenantID:              transactionBody.TenantID,
-			RoomingHouseID:        tenant.RoomingHouseID,
-		}); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
-		}
+// 		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
+// 			Day:                   transactionBody.Day,
+// 			Month:                 transactionBody.Month,
+// 			Year:                  transactionBody.Year,
+// 			Amount:                transactionBody.Amount,
+// 			TransactionCategoryID: transactionBody.TransactionCategoryID,
+// 			TenantID:              transactionBody.TenantID,
+// 			RoomingHouseID:        tenant.RoomingHouse.ID,
+// 		}); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
+// 		}
 
-		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
-			IsDepositBack: true,
-		}, tenant.ID); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
-		}
-	} else {
-		if transactionBody.RoomingHouseID == uuid.Nil && transactionBody.RoomID == uuid.Nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("rooming house id or room id is required"))
-		}
+// 		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
+// 			IsDepositPaid: true,
+// 		}, tenant.ID); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
+// 		}
+// 	} else if transactionCategory.Name == "Deposit Payback" {
+// 		if transactionBody.TenantID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
+// 		}
 
-		if transactionBody.Amount == 0 {
-			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
-		}
+// 		if transactionBody.Amount == 0 {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
+// 		}
 
-		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
-			Day:                   transactionBody.Day,
-			Month:                 transactionBody.Month,
-			Year:                  transactionBody.Year,
-			Amount:                transactionBody.Amount,
-			TransactionCategoryID: transactionBody.TransactionCategoryID,
-			RoomID:                transactionBody.RoomID,
-			RoomingHouseID:        transactionBody.RoomingHouseID,
-		}); err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
-		}
-	}
+// 		var roomingHouseIDs []uuid.UUID
 
-	return c.JSON(200, map[string]interface{}{
-		"message": "transaction created successfully",
-	})
-}
+// 		roomingHouseIDs = append(roomingHouseIDs, transactionBody.RoomingHouseID)
+
+// 		tenant, err := tc.tenantRepo.FindTenantByID(transactionBody.TenantID, roomingHouseIDs)
+// 		if err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
+// 		}
+
+// 		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
+// 			Day:                   transactionBody.Day,
+// 			Month:                 transactionBody.Month,
+// 			Year:                  transactionBody.Year,
+// 			Amount:                transactionBody.Amount,
+// 			TransactionCategoryID: transactionBody.TransactionCategoryID,
+// 			TenantID:              transactionBody.TenantID,
+// 			RoomingHouseID:        tenant.RoomingHouse.ID,
+// 		}); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
+// 		}
+
+// 		if err := tc.tenantRepo.UpdateTenantByID(&models.Tenant{
+// 			IsDepositBack: true,
+// 		}, tenant.ID); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to update tenant"))
+// 		}
+// 	} else {
+// 		if transactionBody.RoomingHouseID == uuid.Nil && transactionBody.RoomID == uuid.Nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("rooming house id or room id is required"))
+// 		}
+
+// 		if transactionBody.Amount == 0 {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("amount is required"))
+// 		}
+
+// 		if err := tc.transactionRepo.CreateTransaction(&models.Transaction{
+// 			Day:                   transactionBody.Day,
+// 			Month:                 transactionBody.Month,
+// 			Year:                  transactionBody.Year,
+// 			Amount:                transactionBody.Amount,
+// 			TransactionCategoryID: transactionBody.TransactionCategoryID,
+// 			RoomID:                transactionBody.RoomID,
+// 			RoomingHouseID:        transactionBody.RoomingHouseID,
+// 		}); err != nil {
+// 			return utils.HandlerError(c, utils.NewBadRequestError("failed to create transaction"))
+// 		}
+// 	}
+
+// 	return c.JSON(200, map[string]interface{}{
+// 		"message": "transaction created successfully",
+// 	})
+// }

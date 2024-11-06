@@ -83,19 +83,29 @@ func (sc *SizeController) FindSizeByID(c echo.Context) error {
 
 func (sc *SizeController) FindAllSizes(c echo.Context) error {
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
+	filteredRoomingHouseID := c.QueryParam("roomingHouseID")
 
 	var roomingHouseIDs []uuid.UUID
 
 	if userPayload.Role == "admin" {
 		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
 	} else {
-		IDs, err := sc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
-		if err != nil {
-			return utils.HandlerError(c, utils.NewInternalError("failed to get rooming house"))
-		}
+		if filteredRoomingHouseID == "" {
+			IDs, err := sc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+			if err != nil {
+				return utils.HandlerError(c, utils.NewInternalError("failed to get rooming house"))
+			}
 
-		for _, roomingHouseID := range IDs {
-			roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+			for _, roomingHouseID := range IDs {
+				roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+			}
+		} else {
+			parseRoomingHouseID, err := uuid.Parse(filteredRoomingHouseID)
+			if err != nil {
+				return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house ID"))
+			}
+
+			roomingHouseIDs = append(roomingHouseIDs, parseRoomingHouseID)
 		}
 	}
 

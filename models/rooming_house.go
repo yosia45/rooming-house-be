@@ -30,12 +30,12 @@ type RoomingHouseBody struct {
 }
 
 type AllRoomingHouseResponse struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Address     string    `json:"address"`
-	FloorTotal  int       `json:"floor_total"`
-	OwnerID     uuid.UUID `json:"owner_id"`
+	ID          uuid.UUID `json:"id" gorm:"column:rooming_house_id"`
+	Name        string    `json:"name" gorm:"column:rooming_house_name"`
+	Description string    `json:"description" gorm:"column:rooming_house_description"`
+	Address     string    `json:"address" gorm:"column:rooming_house_address"`
+	FloorTotal  int       `json:"floor_total" gorm:"column:rooming_house_floor_total"`
+	OwnerID     uuid.UUID `json:"owner_id" gorm:"column:rooming_house_owner_id"`
 }
 
 type RoomingHouseByIDResponse struct {
@@ -49,6 +49,11 @@ type RoomingHouseByIDResponse struct {
 	Transactions []Transaction `json:"transactions"`
 	Facilities   []Facility    `json:"facilities"`
 	Rooms        []Room        `json:"rooms"`
+}
+
+type TenantRoomingHouseResponse struct {
+	ID   uuid.UUID `json:"id" gorm:"column:rooming_house_id"`
+	Name string    `json:"name" gorm:"column:rooming_house_name"`
 }
 
 func (rh *RoomingHouse) BeforeCreate(tx *gorm.DB) (err error) {

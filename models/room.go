@@ -41,12 +41,12 @@ type UpdateRoomBody struct {
 }
 
 type AllRoomResponse struct {
-	ID             uuid.UUID              `json:"id"`
-	Name           string                 `json:"name"`
-	Floor          int                    `json:"floor"`
-	MaxCapacity    int                    `json:"max_capacity"`
-	IsVacant       bool                   `json:"is_vacant"`
-	RoomingHouseID uuid.UUID              `json:"rooming_house_id"`
+	ID             uuid.UUID              `json:"id" gorm:"column:room_id"`
+	Name           string                 `json:"name" gorm:"column:room_name"`
+	Floor          int                    `json:"floor" gorm:"column:floor_number"`
+	MaxCapacity    int                    `json:"max_capacity" gorm:"column:max_capacity"`
+	IsVacant       bool                   `json:"is_vacant" gorm:"column:is_vacant"`
+	RoomingHouseID uuid.UUID              `json:"rooming_house_id" gorm:"column:rooming_house_id"`
 	Tenants        []GetAllTenantResponse `json:"tenants"`
 }
 
@@ -61,6 +61,11 @@ type RoomDetailResponse struct {
 	PricingPackage PackageResponse `json:"pricing_package"`
 	Tenants        []Tenant        `json:"tenants"`
 	Facilities     []Facility      `json:"facilities"`
+}
+
+type TenantRoomResponse struct {
+	ID   uuid.UUID `json:"id" gorm:"column:room_id"`
+	Name string    `json:"name" gorm:"column:room_name"`
 }
 
 func (r *Room) BeforeCreate(tx *gorm.DB) (err error) {

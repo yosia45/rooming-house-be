@@ -12,19 +12,19 @@ type Tenant struct {
 	Name                   string            `json:"name" gorm:"not null"`
 	Gender                 string            `json:"gender" gorm:"not null"`
 	PhoneNumber            string            `json:"phoneNumber" gorm:"not null"`
-	EmergencyContact       string            `json:"emergencyContact" gorm:"not null"`
-	StartDate              time.Time         `json:"start_date" gorm:"not null"`
-	EndDate                time.Time         `json:"end_date" gorm:"not null"`
-	RegularPaymentDuration int               `json:"regular_payment_duration" gorm:"not null"`
+	EmergencyContact       string            `json:"emergencyContact"`
+	StartDate              *time.Time        `json:"start_date"`
+	EndDate                *time.Time        `json:"end_date"`
+	RegularPaymentDuration int               `json:"regular_payment_duration"`
 	IsTenant               bool              `json:"is_tenant" gorm:"not null"`
-	IsDepositPaid          bool              `json:"is_deposit_paid" gorm:"not null"`
-	IsDepositBack          bool              `json:"is_deposit_back" gorm:"not null"`
+	IsDepositPaid          bool              `json:"is_deposit_paid"`
+	IsDepositBack          bool              `json:"is_deposit_back"`
 	RoomingHouseID         uuid.UUID         `json:"rooming_house_id" gorm:"not null"`
-	PeriodID               uuid.UUID         `json:"period_id" gorm:"not null;size:191"`
+	PeriodID               uuid.UUID         `json:"period_id" gorm:"size:191"`
 	TenantID               uuid.UUID         `json:"tenant_id" gorm:"size:191"`
 	RoomID                 uuid.UUID         `json:"room_id" gorm:"not null;size:191"`
 	Transactions           []Transaction     `json:"transactions" gorm:"foreignKey:TenantID;references:ID"`
-	AdditionalPrices       []AdditionalPrice `json:"additional_prices" gorm:"many2many:tenant_additional_prices;foreignKey:ID;joinForeignKey:TenantID;References:ID;joinReferences:AdditionalPriceID"`
+	AdditionalPrices       []AdditionalPrice `json:"additional_prices" gorm:"many2many:tenant_additional_prices;joinForeignKey:TenantID;joinReferences:AdditionalPriceID"`
 }
 
 type AddTenantBody struct {
@@ -32,7 +32,7 @@ type AddTenantBody struct {
 	Gender                 string      `json:"gender"`
 	PhoneNumber            string      `json:"phoneNumber"`
 	EmergencyContact       string      `json:"emergencyContact"`
-	IsTenant               bool        `json:"is_tenant"`
+	IsTenant               *bool       `json:"is_tenant"`
 	RegularPaymentDuration int         `json:"regular_payment_duration"`
 	RoomingHouseID         uuid.UUID   `json:"rooming_house_id"`
 	RoomID                 uuid.UUID   `json:"room_id"`
@@ -49,6 +49,36 @@ type GetAllTenantResponse struct {
 	EndDate        time.Time `json:"end_date"`
 	RoomID         uuid.UUID `json:"room_id"`
 	RoomingHouseID uuid.UUID `json:"rooming_house_id"`
+}
+
+type AllTenantRepoResponse struct {
+	ID           uuid.UUID                  `json:"id"`
+	Name         string                     `json:"name"`
+	Gender       string                     `json:"gender"`
+	StartDate    time.Time                  `json:"start_date"`
+	EndDate      time.Time                  `json:"end_date"`
+	Room         TenantRoomResponse         `json:"room" gorm:"embedded"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house" gorm:"embedded"`
+}
+
+type TenantDetailResponse struct {
+	ID                     uuid.UUID                  `json:"id"`
+	Name                   string                     `json:"name"`
+	Gender                 string                     `json:"gender"`
+	PhoneNumber            string                     `json:"phoneNumber"`
+	EmergencyContact       string                     `json:"emergencyContact"`
+	StartDate              *time.Time                 `json:"start_date"`
+	EndDate                *time.Time                 `json:"end_date"`
+	RegularPaymentDuration int                        `json:"regular_payment_duration"`
+	IsTenant               bool                       `json:"is_tenant"`
+	IsDepositPaid          bool                       `json:"is_deposit_paid"`
+	IsDepositBack          bool                       `json:"is_deposit_back"`
+	TenantID               uuid.UUID                  `json:"tenant_id"`
+	RoomingHouse           TenantRoomingHouseResponse `json:"rooming_house" gorm:"embedded"`
+	Period                 PeriodResponse             `json:"period" gorm:"embedded"`
+	Room                   TenantRoomResponse         `json:"room" gorm:"embedded"`
+	Transactions           []TransactionResponse      `json:"transactions" gorm:"-"`
+	AdditionalPrices       []AdditionalPriceDetail    `json:"additional_prices" gorm:"-"`
 }
 
 func (t *Tenant) BeforeCreate(tx *gorm.DB) (err error) {

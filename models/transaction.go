@@ -34,6 +34,18 @@ type AddTransactionBody struct {
 	RoomingHouseID        uuid.UUID `json:"rooming_house_id"`
 }
 
+type TransactionResponse struct {
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	Day         int       `json:"day"`
+	Month       int       `json:"month"`
+	Year        int       `json:"year"`
+	Amount      float64   `json:"amount"`
+	Description string    `json:"description"`
+	Name        string    `json:"name"`
+	IsExpense   bool      `json:"is_expense"`
+}
+
 func (t *Transaction) BeforeCreate(tx *gorm.DB) (err error) {
 	t.ID = uuid.New()
 	t.CreatedAt = time.Now()

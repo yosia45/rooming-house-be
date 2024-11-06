@@ -150,6 +150,7 @@ func (rc *RoomController) CreateRoom(c echo.Context) error {
 }
 
 func (rc *RoomController) GetRoomByID(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
 	roomID := c.Param("id")
 
 	parsedRoomID, err := uuid.Parse(roomID)
@@ -157,7 +158,15 @@ func (rc *RoomController) GetRoomByID(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid room id"))
 	}
 
-	room, err := rc.roomRepo.FindRoomByID(parsedRoomID)
+	var roomingHouseID uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseID = userPayload.RoomingHouseID
+	} else {
+		roomingHouseID = uuid.Nil
+	}
+
+	room, err := rc.roomRepo.FindRoomByID(parsedRoomID, roomingHouseID, userPayload.UserID, userPayload.Role)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewInternalError("failed to get room"))
 	}
@@ -168,22 +177,33 @@ func (rc *RoomController) GetRoomByID(c echo.Context) error {
 func (rc *RoomController) GetAllRooms(c echo.Context) error {
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
 
-	roomingHouseID := c.QueryParam("rooming_house_id")
+	filteredRoomingHouseID := c.QueryParam("rooming_house_id")
+
+	var roomingHouseIDs []uuid.UUID
 
 	if userPayload.Role == "admin" {
-		roomingHouseID = userPayload.RoomingHouseID.String()
+		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
 	} else {
-		if roomingHouseID == "" {
-			roomingHouseID = uuid.Nil.String()
+		if filteredRoomingHouseID == "" {
+			roomingHouses, err := rc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+			if err != nil {
+				return utils.HandlerError(c, utils.NewBadRequestError("failed to get rooming house"))
+			}
+
+			for _, roomingHouseID := range roomingHouses {
+				roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+			}
+		} else {
+			parsedRoomingHouseID, err := uuid.Parse(filteredRoomingHouseID)
+			if err != nil {
+				return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
+			}
+
+			roomingHouseIDs = append(roomingHouseIDs, parsedRoomingHouseID)
 		}
 	}
 
-	parsedRoomingHouseID, err := uuid.Parse(roomingHouseID)
-	if err != nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
-	}
-
-	rooms, err := rc.roomRepo.FindAllRooms(parsedRoomingHouseID)
+	rooms, err := rc.roomRepo.FindAllRooms(roomingHouseIDs)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewInternalError("failed to get rooms"))
 	}
@@ -229,7 +249,15 @@ func (rc *RoomController) UpdateRoomByID(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid room id"))
 	}
 
-	roomByID, err := rc.roomRepo.FindRoomByID(parsedRoomID)
+	var roomingHouseID uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseID = userPayload.RoomingHouseID
+	} else {
+		roomingHouseID = uuid.Nil
+	}
+
+	roomByID, err := rc.roomRepo.FindRoomByID(parsedRoomID, roomingHouseID, userPayload.UserID, userPayload.Role)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewInternalError("room not found"))
 	}
@@ -318,6 +346,7 @@ func (rc *RoomController) UpdateRoomByID(c echo.Context) error {
 }
 
 func (rc *RoomController) DeleteRoomByID(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
 	roomID := c.Param("id")
 
 	parsedRoomID, err := uuid.Parse(roomID)
@@ -325,7 +354,15 @@ func (rc *RoomController) DeleteRoomByID(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("invalid room id"))
 	}
 
-	if _, err := rc.roomRepo.FindRoomByID(parsedRoomID); err != nil {
+	var roomingHouseID uuid.UUID
+
+	if userPayload.Role == "admin" {
+		roomingHouseID = userPayload.RoomingHouseID
+	} else {
+		roomingHouseID = uuid.Nil
+	}
+
+	if _, err := rc.roomRepo.FindRoomByID(parsedRoomID, roomingHouseID, userPayload.UserID, userPayload.Role); err != nil {
 		return utils.HandlerError(c, utils.NewInternalError("room not found"))
 	}
 

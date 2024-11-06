@@ -126,20 +126,30 @@ func (ppc *PricingPackageController) CreatePricingPackage(c echo.Context) error 
 
 func (ppc *PricingPackageController) GetAllPricingPackages(c echo.Context) error {
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
+	filteredRoomingHouseID := c.QueryParam("rooming_house_id")
 
 	var roomingHouseIDs []uuid.UUID
 
 	if userPayload.Role == "admin" {
 		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
 	} else {
-		IDs, err := ppc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+		if filteredRoomingHouseID == "" {
+			IDs, err := ppc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
 
-		if err != nil {
-			return utils.HandlerError(c, utils.NewBadRequestError("failed to get rooming house"))
-		}
+			if err != nil {
+				return utils.HandlerError(c, utils.NewBadRequestError("failed to get rooming house"))
+			}
 
-		for _, roomingHouseID := range IDs {
-			roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+			for _, roomingHouseID := range IDs {
+				roomingHouseIDs = append(roomingHouseIDs, roomingHouseID.ID)
+			}
+		} else {
+			roomingHouseUUID, err := uuid.Parse(filteredRoomingHouseID)
+			if err != nil {
+				return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
+			}
+
+			roomingHouseIDs = append(roomingHouseIDs, roomingHouseUUID)
 		}
 	}
 

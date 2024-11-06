@@ -16,6 +16,12 @@ type Period struct {
 	AdditionalPeriods []AdditionalPeriod `json:"additional_periods" gorm:"foreignKey:PeriodID"`
 }
 
+type PeriodResponse struct {
+	ID   uuid.UUID `json:"id" gorm:"column:period_id"`
+	Name string    `json:"name" gorm:"column:period_name"`
+	Unit string    `json:"unit" gorm:"column:period_unit"`
+}
+
 func (p *Period) BeforeCreate(tx *gorm.DB) (err error) {
 	p.ID = uuid.New()
 	p.CreatedAt = time.Now()

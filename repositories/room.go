@@ -9,9 +9,8 @@ import (
 
 type RoomRepository interface {
 	CreateRoom(room *models.Room) error
-	// FindRoomsByRoomingHouseID(id uuid.UUID) (*[]models.Room, error)
-	FindAllRooms(roomingHouseID uuid.UUID) (*[]models.AllRoomResponse, error)
-	FindRoomByID(id uuid.UUID) (*models.RoomDetailResponse, error)
+	FindAllRooms(roomingHouseIDs []uuid.UUID) (*[]models.AllRoomResponse, error)
+	FindRoomByID(roomID uuid.UUID, roomingHouseID uuid.UUID, userID uuid.UUID, userRole string) (*models.RoomDetailResponse, error)
 	UpdateRoomByID(room *models.Room, id uuid.UUID) error
 	DeleteRoomByID(id uuid.UUID) error
 }
@@ -31,13 +30,10 @@ func (r *roomRepository) CreateRoom(room *models.Room) error {
 	return nil
 }
 
-func (r *roomRepository) FindAllRooms(roomingHouseID uuid.UUID) (*[]models.AllRoomResponse, error) {
+func (r *roomRepository) FindAllRooms(roomingHouseIDs []uuid.UUID) (*[]models.AllRoomResponse, error) {
 	var rooms []models.Room
-	if roomingHouseID == uuid.Nil {
-		if err := r.db.Preload("Tenants").Find(&rooms).Error; err != nil {
-			return nil, err
-		}
-	} else {
+
+	for _, roomingHouseID := range roomingHouseIDs {
 		if err := r.db.Preload("Tenants").Where("rooming_house_id = ?", roomingHouseID).Find(&rooms).Error; err != nil {
 			return nil, err
 		}
@@ -54,8 +50,8 @@ func (r *roomRepository) FindAllRooms(roomingHouseID uuid.UUID) (*[]models.AllRo
 				ID:             tenant.ID,
 				Name:           tenant.Name,
 				Gender:         tenant.Gender,
-				StartDate:      tenant.StartDate,
-				EndDate:        tenant.EndDate,
+				StartDate:      *tenant.StartDate,
+				EndDate:        *tenant.EndDate,
 				RoomID:         tenant.RoomID,
 				RoomingHouseID: tenant.RoomingHouseID,
 			}
@@ -75,10 +71,28 @@ func (r *roomRepository) FindAllRooms(roomingHouseID uuid.UUID) (*[]models.AllRo
 	return &response, nil
 }
 
-func (r *roomRepository) FindRoomByID(id uuid.UUID) (*models.RoomDetailResponse, error) {
+func (r *roomRepository) FindRoomByID(roomID uuid.UUID, roomingHouseID uuid.UUID, userPayload uuid.UUID, userRole string) (*models.RoomDetailResponse, error) {
 	var room models.Room
-	if err := r.db.Preload("Tenants").Preload("Facilities").Where("id = ?", id).First(&room).Error; err != nil {
-		return nil, err
+
+	if userRole == "admin" {
+		if err := r.db.Preload("Tenants").Preload("Facilities").Where("id = ? AND rooming_house_id = ?", roomID, roomingHouseID).First(&room).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		var roomingHouses []models.RoomingHouse
+
+		if err := r.db.Find(&roomingHouses, "owner_id = ?", userPayload).Error; err != nil {
+			return nil, err
+		}
+
+		for _, roomingHouse := range roomingHouses {
+			if err := r.db.Preload("Tenants").Preload("Facilities").Where("id = ? AND rooming_house_id = ?", roomID, roomingHouse.ID).First(&room).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					continue
+				}
+				return nil, err
+			}
+		}
 	}
 
 	var size models.Size

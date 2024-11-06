@@ -34,23 +34,18 @@ func (r *roomingHouseRepository) CreateRoomingHouse(roomingHouse *models.Rooming
 func (r *roomingHouseRepository) FindRoomingHouseByID(roomingHouseID uuid.UUID, userID uuid.UUID, role string) (*models.RoomingHouseByIDResponse, error) {
 	var roomingHouse models.RoomingHouse
 
+	if err := r.db.Preload("Transactions").
+		Preload("Facilities").
+		Preload("Rooms").
+		Preload("Admin").
+		Where("id = ?", roomingHouseID).
+		First(&roomingHouse).Error; err != nil {
+		return nil, err
+	}
+
 	if role == "owner" {
-		if err := r.db.Preload("Transactions").
-			Preload("Facilities").
-			Preload("Rooms").
-			Preload("Admin").
-			Where("id = ? AND owner_id = ?", roomingHouseID, userID).
-			First(&roomingHouse).Error; err != nil {
-			return nil, err
-		}
-	} else {
-		if err := r.db.Preload("Transactions").
-			Preload("Facilities").
-			Preload("Rooms").
-			Preload("Admin").
-			Where("id = ?", roomingHouseID).
-			First(&roomingHouse).Error; err != nil {
-			return nil, err
+		if roomingHouse.OwnerID != userID {
+			return nil, errors.New("rooming house not found")
 		}
 	}
 

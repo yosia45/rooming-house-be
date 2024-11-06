@@ -39,6 +39,13 @@ type AdditionalPriceResponse struct {
 	Prices         map[string]float64 `json:"prices"`
 }
 
+type AdditionalPriceDetail struct {
+	ID         uuid.UUID `json:"id"`
+	Name       string    `json:"name"`
+	Price      float64   `json:"price"`
+	PeriodName string    `json:"period_name"`
+}
+
 func (ap *AdditionalPrice) BeforeCreate(tx *gorm.DB) (err error) {
 	ap.ID = uuid.New()
 	ap.CreatedAt = time.Now()

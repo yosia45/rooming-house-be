@@ -34,7 +34,7 @@ func main() {
 	cli.PricingPackageRoutes(e)
 	cli.RoomRoutes(e)
 	cli.AdditionalPriceRoutes(e)
-	// cli.TransactionRoutes(e)
+	cli.TransactionRoutes(e)
 	cli.TenantRoutes(e)
 
 	e.Logger.Fatal(e.Start(":" + port))

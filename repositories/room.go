@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"rooming-house-cms-be/models"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -33,39 +34,34 @@ func (r *roomRepository) CreateRoom(room *models.Room) error {
 func (r *roomRepository) FindAllRooms(roomingHouseIDs []uuid.UUID) (*[]models.AllRoomResponse, error) {
 	var rooms []models.Room
 
-	for _, roomingHouseID := range roomingHouseIDs {
-		if err := r.db.Preload("Tenants").Where("rooming_house_id = ?", roomingHouseID).Find(&rooms).Error; err != nil {
-			return nil, err
-		}
+	now := time.Now()
+
+	if err := r.db.Preload("Tenants", "is_tenant = 1 AND start_date <= ? AND end_date >= ?", now, now).Where("rooming_house_id IN ?", roomingHouseIDs).Find(&rooms).Error; err != nil {
+		return nil, err
 	}
 
-	// Mempersiapkan slice untuk response
 	var response []models.AllRoomResponse
 
-	// Memetakan room ke response
 	for _, room := range rooms {
-		tenantResponses := make([]models.GetAllTenantResponse, len(room.Tenants))
-		for i, tenant := range room.Tenants {
-			tenantResponses[i] = models.GetAllTenantResponse{
-				ID:             tenant.ID,
-				Name:           tenant.Name,
-				Gender:         tenant.Gender,
-				StartDate:      *tenant.StartDate,
-				EndDate:        *tenant.EndDate,
-				RoomID:         tenant.RoomID,
-				RoomingHouseID: tenant.RoomingHouseID,
+		if room.Tenants != nil {
+			tenantResponse := models.GetAllTenantResponse{
+				ID:             room.Tenants.ID,
+				Name:           room.Tenants.Name,
+				Gender:         room.Tenants.Gender,
+				StartDate:      room.Tenants.StartDate,
+				EndDate:        room.Tenants.EndDate,
+				RoomID:         *room.Tenants.RoomID,
+				RoomingHouseID: room.Tenants.RoomingHouseID,
 			}
+			response = append(response, models.AllRoomResponse{
+				ID:             room.ID,
+				Name:           room.Name,
+				Floor:          room.Floor,
+				MaxCapacity:    room.MaxCapacity,
+				Tenants:        tenantResponse,
+				RoomingHouseID: room.RoomingHouseID,
+			})
 		}
-
-		response = append(response, models.AllRoomResponse{
-			ID:             room.ID,
-			Name:           room.Name,
-			Floor:          room.Floor,
-			MaxCapacity:    room.MaxCapacity,
-			IsVacant:       room.IsVacant,
-			Tenants:        tenantResponses,
-			RoomingHouseID: room.RoomingHouseID,
-		})
 	}
 
 	return &response, nil
@@ -73,9 +69,10 @@ func (r *roomRepository) FindAllRooms(roomingHouseIDs []uuid.UUID) (*[]models.Al
 
 func (r *roomRepository) FindRoomByID(roomID uuid.UUID, roomingHouseID uuid.UUID, userPayload uuid.UUID, userRole string) (*models.RoomDetailResponse, error) {
 	var room models.Room
+	now := time.Now()
 
 	if userRole == "admin" {
-		if err := r.db.Preload("Tenants").Preload("Facilities").Where("id = ? AND rooming_house_id = ?", roomID, roomingHouseID).First(&room).Error; err != nil {
+		if err := r.db.Preload("Facilities").Where("id = ? AND rooming_house_id = ?", roomID, roomingHouseID).First(&room).Error; err != nil {
 			return nil, err
 		}
 	} else {
@@ -85,15 +82,37 @@ func (r *roomRepository) FindRoomByID(roomID uuid.UUID, roomingHouseID uuid.UUID
 			return nil, err
 		}
 
-		for _, roomingHouse := range roomingHouses {
-			if err := r.db.Preload("Tenants").Preload("Facilities").Where("id = ? AND rooming_house_id = ?", roomID, roomingHouse.ID).First(&room).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					continue
-				}
-				return nil, err
-			}
+		roomingHouseIDs := make([]uuid.UUID, len(roomingHouses))
+		for i, rh := range roomingHouses {
+			roomingHouseIDs[i] = rh.ID
+		}
+
+		if err := r.db.Preload("Facilities").Where("id = ? AND rooming_house_id IN ?", roomID, roomingHouseIDs).First(&room).Error; err != nil {
+			return nil, err
 		}
 	}
+
+	var tenantWithAssists models.TenantRoomDetailResponse
+
+	// Query pertama untuk tenant utama
+	if err := r.db.Table("tenants as t").
+		Select("t.id, t.name, t.gender, t.phone_number, t.emergency_contact, t.is_tenant, t.start_date, t.end_date, t.regular_payment_duration").
+		Where("t.room_id = ? AND t.is_tenant = true AND t.start_date <= ? AND t.end_date >= ? AND t.deleted_at IS NULL", roomID, now, now).
+		Scan(&tenantWithAssists).Error; err != nil {
+		return nil, err
+	}
+
+	// Query kedua untuk assist
+	var tenantAssists []models.TenantAssistResponse
+	if err := r.db.Table("tenants as ta").
+		Select("ta.id as id, ta.name as name, ta.gender as gender, ta.phone_number as phoneNumber, ta.is_tenant as isTenant").
+		Where("ta.tenant_id = ? AND ta.is_tenant = false AND ta.deleted_at IS NULL", tenantWithAssists.ID).
+		Scan(&tenantAssists).Error; err != nil {
+		return nil, err
+	}
+
+	// Gabungkan hasil
+	tenantWithAssists.TenantAssists = tenantAssists
 
 	var size models.Size
 	if err := r.db.Where("id = ?", room.SizeID).First(&size).Error; err != nil {
@@ -112,11 +131,10 @@ func (r *roomRepository) FindRoomByID(roomID uuid.UUID, roomingHouseID uuid.UUID
 		Name:           room.Name,
 		Floor:          room.Floor,
 		MaxCapacity:    room.MaxCapacity,
-		IsVacant:       room.IsVacant,
 		Size:           size,
 		RoomingHouseID: room.RoomingHouseID,
-		Tenants:        []models.Tenant{},
-		Facilities:     []models.Facility{},
+		Tenants:        &tenantWithAssists,
+		Facilities:     room.Facilities,
 		PricingPackage: models.PackageResponse{
 			ID:             pricingPackage.ID,
 			Name:           pricingPackage.Name,

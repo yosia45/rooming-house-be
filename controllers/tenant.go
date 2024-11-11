@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"rooming-house-cms-be/models"
 	"rooming-house-cms-be/repositories"
@@ -42,34 +41,6 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("phone number is required"))
 	}
 
-	if tenantBody.IsTenant == nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("is tenant is required"))
-	}
-
-	if *tenantBody.IsTenant && tenantBody.EmergencyContact == "" {
-		return utils.HandlerError(c, utils.NewBadRequestError("emergency contact is required"))
-	}
-
-	if tenantBody.RoomID == uuid.Nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("room id is required"))
-	}
-
-	if tenantBody.PeriodID == uuid.Nil && *tenantBody.IsTenant {
-		return utils.HandlerError(c, utils.NewBadRequestError("period id is required"))
-	}
-
-	if tenantBody.RegularPaymentDuration == 0 && *tenantBody.IsTenant {
-		return utils.HandlerError(c, utils.NewBadRequestError("regular payment duration is required"))
-	}
-
-	if !*tenantBody.IsTenant && tenantBody.TenantID == uuid.Nil {
-		return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
-	}
-
-	if *tenantBody.IsTenant {
-		tenantBody.TenantID = uuid.Nil
-	}
-
 	var roomingHouseID uuid.UUID
 
 	if userPayload.Role == "owner" {
@@ -78,44 +49,66 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		roomingHouseID = userPayload.RoomingHouseID
 	}
 
+	if tenantBody.IsTenant {
+		if tenantBody.EmergencyContact == "" {
+			return utils.HandlerError(c, utils.NewBadRequestError("emergency contact is required"))
+		}
+
+		if tenantBody.RoomID == nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("room id is required"))
+		}
+
+		if tenantBody.PeriodID == nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("period id is required"))
+		}
+
+		if tenantBody.RegularPaymentDuration == 0 {
+			return utils.HandlerError(c, utils.NewBadRequestError("regular payment duration is required"))
+		}
+
+		var room *models.RoomDetailResponse
+		var err error
+
+		room, err = tc.roomRepo.FindRoomByID(*tenantBody.RoomID, roomingHouseID, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			if err.Error() == "record not found" {
+				return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
+			}
+		}
+
+		if room.RoomingHouseID != roomingHouseID {
+			return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
+		}
+
+		tenantBody.TenantID = uuid.Nil
+	} else {
+		if tenantBody.TenantID == uuid.Nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("tenant id is required"))
+		}
+
+		tenant, err := tc.tenantRepo.FindTenantByID(tenantBody.TenantID, []uuid.UUID{roomingHouseID})
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("tenant not found"))
+		}
+
+		room, err := tc.roomRepo.FindRoomByID(tenant.BookedRoomID, roomingHouseID, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			if err.Error() == "record not found" {
+				return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
+			}
+		}
+
+		if room.MaxCapacity-1 < len(tenant.TenantAssists) {
+			return utils.HandlerError(c, utils.NewBadRequestError("room is full"))
+		}
+
+		tenantBody.RoomID = nil
+		tenantBody.PeriodID = nil
+	}
+
 	_, err := tc.roomingHouseRepo.FindRoomingHouseByID(roomingHouseID, userPayload.UserID, userPayload.Role)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("rooming house not found"))
-	}
-
-	room, err := tc.roomRepo.FindRoomByID(tenantBody.RoomID, roomingHouseID, userPayload.UserID, userPayload.Role)
-	if err != nil {
-		if err.Error() == "record not found" {
-			return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
-		}
-	}
-
-	if room.RoomingHouseID != roomingHouseID {
-		return utils.HandlerError(c, utils.NewBadRequestError("room not found"))
-	}
-
-	if !room.IsVacant {
-		if !*tenantBody.IsTenant {
-			return utils.HandlerError(c, utils.NewBadRequestError("room is not vacant"))
-		} else {
-			if len(room.Tenants) == room.MaxCapacity {
-				return utils.HandlerError(c, utils.NewBadRequestError("room is full"))
-			}
-		}
-	} else {
-		if !*tenantBody.IsTenant {
-			hasTenant := false
-			for _, tenant := range room.Tenants {
-				if tenant.IsTenant {
-					hasTenant = true
-					break
-				}
-			}
-
-			if !hasTenant {
-				return utils.HandlerError(c, utils.NewBadRequestError("need a tenant"))
-			}
-		}
 	}
 
 	newTenant := models.Tenant{
@@ -123,7 +116,7 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		Gender:                 tenantBody.Gender,
 		PhoneNumber:            tenantBody.PhoneNumber,
 		EmergencyContact:       tenantBody.EmergencyContact,
-		IsTenant:               *tenantBody.IsTenant,
+		IsTenant:               tenantBody.IsTenant,
 		RegularPaymentDuration: tenantBody.RegularPaymentDuration,
 		RoomingHouseID:         roomingHouseID,
 		RoomID:                 tenantBody.RoomID,
@@ -135,8 +128,6 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to create tenant"))
 	}
 
-	fmt.Println(len(tenantBody.TenantAdditionalIDs))
-
 	if len(tenantBody.TenantAdditionalIDs) > 0 {
 		var tenantAdditionalPrices []models.TenantAdditionalPrice
 		for _, tenantAdditionalID := range tenantBody.TenantAdditionalIDs {
@@ -147,8 +138,6 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 
 			tenantAdditionalPrices = append(tenantAdditionalPrices, tenantAdditionalPrice)
 		}
-
-		fmt.Println(tenantAdditionalPrices)
 
 		if err := tc.tenantAdditionalPriceRepo.CreateTenantAdditional(&tenantAdditionalPrices); err != nil {
 			return utils.HandlerError(c, utils.NewBadRequestError("failed to create tenant additional prices"))

@@ -92,7 +92,7 @@ func (uc *UserController) RegisterAdmin(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewBadRequestError("rooming house not found"))
 	}
 
-	if roomingHouse.ID != userPayload.RoomingHouseID {
+	if roomingHouse.OwnerID != userPayload.UserID {
 		return utils.HandlerError(c, utils.NewUnauthorizedError("you are not the owner of this rooming house"))
 	}
 
@@ -154,9 +154,6 @@ func (uc *UserController) Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid role"})
 	}
 
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "user not found"})
-	}
 	// Verifikasi password
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password))
 	if err != nil {

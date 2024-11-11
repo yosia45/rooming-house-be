@@ -125,7 +125,7 @@ func (rc *RoomController) CreateRoom(c echo.Context) error {
 		MaxCapacity:    roomBody.MaxCapacity,
 		SizeID:         roomBody.SizeID,
 		PackageID:      roomBody.PackageID,
-		IsVacant:       true,
+		TenantID:       uuid.Nil,
 		RoomingHouseID: roomingHouseID,
 	}
 
@@ -262,8 +262,8 @@ func (rc *RoomController) UpdateRoomByID(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewInternalError("room not found"))
 	}
 
-	if len(roomByID.Tenants) > 1 && roomByID.MaxCapacity > roomBody.MaxCapacity {
-		return utils.HandlerError(c, utils.NewBadRequestError(fmt.Sprintf("max capacity is less than current tenant count (%d)", len(roomByID.Tenants))))
+	if len(roomByID.Tenants.TenantAssists) > 0 && roomByID.MaxCapacity-1 > roomBody.MaxCapacity {
+		return utils.HandlerError(c, utils.NewBadRequestError(fmt.Sprintf("max capacity is less than current tenant count (%d)", len(roomByID.Tenants.TenantAssists)+1)))
 	}
 
 	roomingHouse, err := rc.roomingHouseRepo.FindRoomingHouseByID(roomByID.RoomingHouseID, userPayload.UserID, userPayload.Role)

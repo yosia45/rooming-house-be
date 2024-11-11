@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"rooming-house-cms-be/models"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -31,14 +32,15 @@ func (r *tenantRepository) CreateTenant(tenant *models.Tenant) error {
 }
 
 func (r *tenantRepository) FindAllTenants(roomingHouseIDs []uuid.UUID, isTenant bool) (*[]models.AllTenantRepoResponse, error) {
-
 	var flatTenants []models.AllTenantRepoResponse
+
+	now := time.Now()
 
 	query := r.db.Select("t.id, t.name, t.gender, t.start_date, t.end_date, r.id AS room_id, r.name AS room_name, rh.id AS rooming_house_id, rh.name AS rooming_house_name").
 		Table("tenants t").
-		Joins("JOIN rooms r ON t.room_id = r.id").
+		Joins("LEFT JOIN rooms r ON t.room_id = r.id AND t.start_date <= ? AND t.end_date >= ?", now, now).
 		Joins("JOIN rooming_houses rh ON t.rooming_house_id = rh.id").
-		Where("t.rooming_house_id IN (?) AND t.deleted_at IS NULL", roomingHouseIDs)
+		Where("t.rooming_house_id IN (?) AND t.deleted_at IS NULL AND t.is_tenant = 1", roomingHouseIDs)
 
 	if isTenant {
 		query = query.Where("t.is_tenant = ?", 1)
@@ -52,11 +54,13 @@ func (r *tenantRepository) FindAllTenants(roomingHouseIDs []uuid.UUID, isTenant 
 }
 
 func (r *tenantRepository) FindTenantByID(tenantID uuid.UUID, roomingHouseIDs []uuid.UUID) (*models.TenantDetailResponse, error) {
+	now := time.Now()
+
 	var tenantResponse models.TenantDetailResponse
 	if err := r.db.
-		Select("t.id, t.created_at, t.deleted_at, t.updated_at, t.name, t.gender, t.phone_number, t.emergency_contact, t.start_date, t.end_date, t.regular_payment_duration, t.is_tenant, t.is_deposit_paid, t.is_deposit_back, r.id AS room_id, r.name AS room_name, rh.id AS rooming_house_id, rh.name AS rooming_house_name, p.id AS period_id, p.name AS period_name").
+		Select("t.id, t.created_at, t.deleted_at, t.updated_at, t.name, t.gender, t.phone_number, t.emergency_contact, t.room_id as booked_room_id, t.start_date, t.end_date, t.regular_payment_duration, t.is_tenant, t.is_deposit_paid, t.is_deposit_back, r.id AS room_id, r.name AS room_name, rh.id AS rooming_house_id, rh.name AS rooming_house_name, p.id AS period_id, p.name AS period_name").
 		Table("tenants t").
-		Joins("JOIN rooms r ON t.room_id = r.id").
+		Joins("LEFT JOIN rooms r ON t.room_id = r.id AND t.start_date <= ? AND t.end_date >= ?", now, now).
 		Joins("JOIN periods p ON t.period_id = p.id").
 		Joins("JOIN rooming_houses rh ON rh.id = t.rooming_house_id").
 		Where("t.id = ? AND t.deleted_at IS NULL AND t.rooming_house_id IN (?)", tenantID, roomingHouseIDs).
@@ -66,6 +70,17 @@ func (r *tenantRepository) FindTenantByID(tenantID uuid.UUID, roomingHouseIDs []
 		}
 		return nil, err
 	}
+
+	var tenantAssists []models.TenantAssistResponse
+	if err := r.db.
+		Table("tenants t").
+		Select("ta.id, ta.name, ta.gender, ta.phone_number, ta.is_tenant, ta.tenant_id, ta.rooming_house_id").
+		Joins("JOIN tenants ta ON t.id = ta.tenant_id").
+		Where("t.id = ? AND ta.is_tenant = false AND ta.deleted_at IS NULL", tenantID).
+		Scan(&tenantAssists).Error; err != nil {
+		return nil, err
+	}
+	tenantResponse.TenantAssists = tenantAssists
 
 	var transactions []models.TransactionResponse
 	if err := r.db.Table("transactions t").

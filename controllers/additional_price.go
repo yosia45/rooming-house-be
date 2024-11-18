@@ -229,7 +229,7 @@ func (apc *AdditionalPriceController) UpdateAdditionalPriceByID(c echo.Context) 
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to update additional period"))
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{"message": "additional price deleted"})
+	return c.JSON(http.StatusOK, map[string]string{"message": "additional price updated"})
 }
 
 func (apc *AdditionalPriceController) DeleteAdditionalPriceByID(c echo.Context) error {

@@ -33,6 +33,13 @@ type AdminResponse struct {
 	RoomingHouseID uuid.UUID `json:"rooming_house_id"`
 }
 
+type GetAllAdminResponse struct {
+	ID           uuid.UUID                  `json:"id"`
+	Username     string                     `json:"username"`
+	Role         string                     `json:"role"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house"`
+}
+
 func (a *Admin) BeforeCreate(tx *gorm.DB) (err error) {
 	a.ID = uuid.New()
 	a.CreatedAt = time.Now()

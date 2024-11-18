@@ -11,7 +11,7 @@ import (
 type SizeRepository interface {
 	CreateSize(size *models.Size) error
 	FindSizeByID(id uuid.UUID) (*models.Size, error)
-	FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.Size, error)
+	FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.AllSizeResponse, error)
 	UpdateSizeByID(size *models.Size, id uuid.UUID) error
 	DeleteSizeByID(id uuid.UUID) error
 }
@@ -39,18 +39,39 @@ func (r *sizeRepository) FindSizeByID(id uuid.UUID) (*models.Size, error) {
 	return &size, nil
 }
 
-func (r *sizeRepository) FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.Size, error) {
+func (r *sizeRepository) FindAllSizes(roomingHouseID []uuid.UUID) (*[]models.AllSizeResponse, error) {
 	var sizes []models.Size
 
-	for _, id := range roomingHouseID {
-		var temp []models.Size
-		if err := r.db.Where("rooming_house_id = ?", id).Find(&temp).Error; err != nil {
-			return nil, err
-		}
-		sizes = append(sizes, temp...)
+	if err := r.db.Where("rooming_house_id IN ?", roomingHouseID).Find(&sizes).Error; err != nil {
+		return nil, err
 	}
 
-	return &sizes, nil
+	var roomingHouses []models.RoomingHouse
+	if err := r.db.Where("id IN ?", roomingHouseID).Find(&roomingHouses).Error; err != nil {
+		return nil, err
+	}
+
+	roomingHouseMap := make(map[uuid.UUID]models.RoomingHouse)
+	for _, rh := range roomingHouses {
+		roomingHouseMap[rh.ID] = rh
+	}
+
+	var responses []models.AllSizeResponse
+	for _, size := range sizes {
+		response := models.AllSizeResponse{
+			ID:    size.ID,
+			Name:  size.Name,
+			Width: size.Width,
+			Long:  size.Long,
+			RoomingHouse: models.TenantRoomingHouseResponse{
+				ID:   roomingHouseMap[size.RoomingHouseID].ID,
+				Name: roomingHouseMap[size.RoomingHouseID].Name,
+			},
+		}
+		responses = append(responses, response)
+	}
+
+	return &responses, nil
 }
 
 func (r *sizeRepository) UpdateSizeByID(size *models.Size, id uuid.UUID) error {

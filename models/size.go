@@ -29,6 +29,14 @@ type UpdateSizeBody struct {
 	Long  float64 `json:"long" validate:"required"`
 }
 
+type AllSizeResponse struct {
+	ID           uuid.UUID                  `json:"id"`
+	Name         string                     `json:"name"`
+	Width        float64                    `json:"width"`
+	Long         float64                    `json:"long"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house"`
+}
+
 func (s *Size) BeforeCreate(tx *gorm.DB) (err error) {
 	s.ID = uuid.New()
 	s.CreatedAt = time.Now()

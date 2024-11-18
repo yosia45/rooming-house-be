@@ -38,16 +38,25 @@ func (r *additionalPeriodRepository) FindPrice(periodID uuid.UUID, additionalPri
 }
 
 func (r *additionalPeriodRepository) UpdateAdditionalPeriod(additionalPeriod *[]models.AdditionalPeriod, additionalPriceID uuid.UUID) error {
-	res := r.db.Delete(&additionalPeriod, "additional_price_id = ?", additionalPriceID)
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	res := tx.Unscoped().Delete(&models.AdditionalPeriod{}, "additional_price_id = ?", additionalPriceID)
 	if res.Error != nil {
+		tx.Rollback()
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return errors.New("additional period not found")
 		}
+		return res.Error
 	}
 
-	if err := r.db.Create(additionalPeriod).Error; err != nil {
+	if err := tx.Create(additionalPeriod).Error; err != nil {
+		tx.Rollback()
 		return err
 	}
 
-	return nil
+	// Step 3: Commit transaction if all operations succeed
+	return tx.Commit().Error
 }

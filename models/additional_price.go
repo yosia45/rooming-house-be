@@ -33,10 +33,10 @@ type UpdateAdditionalPriceBody struct {
 }
 
 type AdditionalPriceResponse struct {
-	ID             uuid.UUID          `json:"id"`
-	Name           string             `json:"name"`
-	RoomingHouseID uuid.UUID          `json:"rooming_house_id"`
-	Prices         map[string]float64 `json:"prices"`
+	ID           uuid.UUID                  `json:"id"`
+	Name         string                     `json:"name"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house"`
+	Prices       map[string]float64         `json:"prices"`
 }
 
 type AdditionalPriceDetail struct {

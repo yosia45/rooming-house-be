@@ -5,6 +5,7 @@ import (
 	"os"
 	"rooming-house-cms-be/cli"
 	"rooming-house-cms-be/config"
+	"rooming-house-cms-be/middlewares"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -26,6 +27,8 @@ func main() {
 
 	e := echo.New()
 
+	e.Use(middlewares.CORSConfig())
+
 	cli.Auth(e)
 	cli.RoomingHouseRoutes(e)
 	cli.SizeRoutes(e)
@@ -36,6 +39,7 @@ func main() {
 	cli.AdditionalPriceRoutes(e)
 	cli.TransactionRoutes(e)
 	cli.TenantRoutes(e)
+	cli.AdminRoutes(e)
 
 	e.Logger.Fatal(e.Start(":" + port))
 }

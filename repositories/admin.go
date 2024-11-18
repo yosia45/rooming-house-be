@@ -4,12 +4,14 @@ import (
 	"errors"
 	"rooming-house-cms-be/models"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type AdminRepository interface {
 	CreateAdmin(user *models.Admin) error
 	FindAdminByEmail(email string) (*models.Admin, error)
+	FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.GetAllAdminResponse, error)
 }
 
 type adminRepository struct {
@@ -33,4 +35,38 @@ func (r *adminRepository) FindAdminByEmail(email string) (*models.Admin, error) 
 		return nil, errors.New("owner not found")
 	}
 	return &admin, nil
+}
+
+func (r *adminRepository) FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.GetAllAdminResponse, error) {
+	var rawResults []struct {
+		ID               uuid.UUID `json:"id"`
+		Username         string    `json:"username"`
+		Role             string    `json:"role"`
+		RoomingHouseID   uuid.UUID `json:"rooming_house_id"`
+		RoomingHouseName string    `json:"rooming_house_name"`
+	}
+
+	var admins []models.GetAllAdminResponse
+
+	if err := r.db.Table("admins").
+		Select("admins.id, admins.username, admins.role, admins.rooming_house_id AS rooming_house_id, rooming_houses.name AS rooming_house_name").
+		Joins("JOIN rooming_houses ON admins.rooming_house_id = rooming_houses.id").
+		Where("admins.rooming_house_id IN (?)", roomingHouseIDs).
+		Scan(&rawResults).Error; err != nil {
+		return nil, err
+	}
+
+	for _, rawResult := range rawResults {
+		admins = append(admins, models.GetAllAdminResponse{
+			ID:       rawResult.ID,
+			Username: rawResult.Username,
+			Role:     rawResult.Role,
+			RoomingHouse: models.TenantRoomingHouseResponse{
+				ID:   rawResult.RoomingHouseID,
+				Name: rawResult.RoomingHouseName,
+			},
+		})
+	}
+
+	return &admins, nil
 }

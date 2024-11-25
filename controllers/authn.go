@@ -96,6 +96,10 @@ func (uc *UserController) RegisterAdmin(c echo.Context) error {
 		return utils.HandlerError(c, utils.NewUnauthorizedError("you are not the owner of this rooming house"))
 	}
 
+	if roomingHouse.Admin.ID != uuid.Nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("rooming house already has an admin"))
+	}
+
 	newAdmin := models.Admin{
 		FullName:       admin.FullName,
 		Email:          admin.Email,

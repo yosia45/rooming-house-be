@@ -15,6 +15,7 @@ func AdminRoutes(e *echo.Echo) {
 
 	adminController := controllers.NewAdminController(adminRepo, roomingHouseRepo)
 
-	admin := e.Group("/admins")
-	admin.GET("", adminController.GetAllAdmin, middlewares.JWTAuth, middlewares.Authz)
+	admin := e.Group("/admins", middlewares.JWTAuth, middlewares.Authz)
+	admin.GET("", adminController.GetAllAdmin)
+	admin.DELETE("/:id", adminController.DeleteAdminByID)
 }

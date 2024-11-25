@@ -150,7 +150,7 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 func (tc *TenantController) FindAllTenants(c echo.Context) error {
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
 
-	roomingHouseID := c.QueryParam("roomingHouseID")
+	roomingHouseID := c.QueryParam("rooming_house_id")
 	isTenant := c.QueryParam("isTenant")
 
 	var roomingHouseIDs []uuid.UUID

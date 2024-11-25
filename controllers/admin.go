@@ -42,3 +42,23 @@ func (ac *AdminController) GetAllAdmin(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, admins)
 }
+
+func (ac *AdminController) DeleteAdminByID(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+	adminID := c.Param("id")
+
+	if userPayload.Role != "owner" {
+		return utils.HandlerError(c, utils.NewForbiddenError("you are not allowed to access this resource"))
+	}
+
+	adminUUID, err := uuid.Parse(adminID)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("invalid admin id"))
+	}
+
+	if err := ac.adminRepo.DeleteAdminByID(adminUUID); err != nil {
+		return utils.HandlerError(c, utils.NewInternalError(err.Error()))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "admin deleted successfully"})
+}

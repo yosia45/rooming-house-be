@@ -35,6 +35,7 @@ type AdminResponse struct {
 
 type GetAllAdminResponse struct {
 	ID           uuid.UUID                  `json:"id"`
+	FullName     string                     `json:"full_name"`
 	Username     string                     `json:"username"`
 	Role         string                     `json:"role"`
 	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house"`

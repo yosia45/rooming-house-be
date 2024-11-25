@@ -12,6 +12,7 @@ type AdminRepository interface {
 	CreateAdmin(user *models.Admin) error
 	FindAdminByEmail(email string) (*models.Admin, error)
 	FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.GetAllAdminResponse, error)
+	DeleteAdminByID(id uuid.UUID) error
 }
 
 type adminRepository struct {
@@ -40,6 +41,7 @@ func (r *adminRepository) FindAdminByEmail(email string) (*models.Admin, error) 
 func (r *adminRepository) FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.GetAllAdminResponse, error) {
 	var rawResults []struct {
 		ID               uuid.UUID `json:"id"`
+		FullName         string    `json:"full_name"`
 		Username         string    `json:"username"`
 		Role             string    `json:"role"`
 		RoomingHouseID   uuid.UUID `json:"rooming_house_id"`
@@ -49,7 +51,7 @@ func (r *adminRepository) FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.G
 	var admins []models.GetAllAdminResponse
 
 	if err := r.db.Table("admins").
-		Select("admins.id, admins.username, admins.role, admins.rooming_house_id AS rooming_house_id, rooming_houses.name AS rooming_house_name").
+		Select("admins.id, admins.full_name, admins.username, admins.role, admins.rooming_house_id AS rooming_house_id, rooming_houses.name AS rooming_house_name").
 		Joins("JOIN rooming_houses ON admins.rooming_house_id = rooming_houses.id").
 		Where("admins.rooming_house_id IN (?)", roomingHouseIDs).
 		Scan(&rawResults).Error; err != nil {
@@ -59,6 +61,7 @@ func (r *adminRepository) FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.G
 	for _, rawResult := range rawResults {
 		admins = append(admins, models.GetAllAdminResponse{
 			ID:       rawResult.ID,
+			FullName: rawResult.FullName,
 			Username: rawResult.Username,
 			Role:     rawResult.Role,
 			RoomingHouse: models.TenantRoomingHouseResponse{
@@ -69,4 +72,20 @@ func (r *adminRepository) FindAllAdmin(roomingHouseIDs []uuid.UUID) (*[]models.G
 	}
 
 	return &admins, nil
+}
+
+func (r *adminRepository) DeleteAdminByID(id uuid.UUID) error {
+	res := r.db.Where("id = ?", id).Delete(&models.Admin{})
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return errors.New("admin not found")
+		}
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return errors.New("admin not found")
+	}
+
+	return nil
 }

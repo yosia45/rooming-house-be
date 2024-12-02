@@ -39,6 +39,13 @@ type PackageResponse struct {
 	Prices         map[string]float64 `json:"prices"`
 }
 
+type AllPackageResponse struct {
+	ID           uuid.UUID                  `json:"id"`
+	Name         string                     `json:"name"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house"`
+	Prices       map[string]float64         `json:"prices"`
+}
+
 func (pp *PricingPackage) BeforeCreate(tx *gorm.DB) (err error) {
 	pp.ID = uuid.New()
 	pp.CreatedAt = time.Now()

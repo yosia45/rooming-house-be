@@ -15,8 +15,8 @@ type TransactionCategory struct {
 }
 
 type TransactionCategoryBody struct {
-	Name      string `json:"name"`
-	IsExpense bool   `json:"is_expense"`
+	Name      string `json:"name" gorm:"column:transaction_category_name"`
+	IsExpense bool   `json:"is_expense" gorm:"column:transaction_category_is_expense"`
 }
 
 func (tc *TransactionCategory) BeforeCreate(tx *gorm.DB) (err error) {

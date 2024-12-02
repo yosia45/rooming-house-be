@@ -10,7 +10,7 @@ import (
 type PricingPackageRepository interface {
 	CreatePricingPackage(pricingPackage *models.PricingPackage) error
 	FindPricingPackageByID(packageID uuid.UUID) (*models.PricingPackage, error)
-	FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.PackageResponse, error)
+	FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.AllPackageResponse, error)
 	UpdatePricingPackageByID(pricingPackage *models.PricingPackage, id uuid.UUID) error
 	DeletePricingPackageByID(id uuid.UUID) error
 }
@@ -39,25 +39,34 @@ func (r *pricingPackageRepository) FindPricingPackageByID(packageID uuid.UUID) (
 	return &pricingPackage, nil
 }
 
-func (r *pricingPackageRepository) FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.PackageResponse, error) {
+func (r *pricingPackageRepository) FindAllPricingPackages(roomingHouseIDs []uuid.UUID) (*[]models.AllPackageResponse, error) {
 	var pricingPackages []models.PricingPackage
 
-	for _, id := range roomingHouseIDs {
-		var temp []models.PricingPackage
-		if err := r.db.Preload("PeriodPackages").Preload("PeriodPackages.Period").Where("rooming_house_id = ?", id).Find(&temp).Error; err != nil {
-			return nil, err
-		}
-		pricingPackages = append(pricingPackages, temp...)
+	if err := r.db.Preload("PeriodPackages").Preload("PeriodPackages.Period").Where("rooming_house_id IN ?", roomingHouseIDs).Find(&pricingPackages).Error; err != nil {
+		return nil, err
 	}
 
-	var responses []models.PackageResponse
+	var roomingHouses []models.RoomingHouse
+	if err := r.db.Where("id IN ?", roomingHouseIDs).Find(&roomingHouses).Error; err != nil {
+		return nil, err
+	}
+
+	roomingHouseMap := make(map[uuid.UUID]models.RoomingHouse)
+	for _, rh := range roomingHouses {
+		roomingHouseMap[rh.ID] = rh
+	}
+
+	var responses []models.AllPackageResponse
 
 	for _, pkg := range pricingPackages {
-		response := models.PackageResponse{
-			ID:             pkg.ID,
-			Name:           pkg.Name,
-			RoomingHouseID: pkg.RoomingHouseID,
-			Prices:         make(map[string]float64),
+		response := models.AllPackageResponse{
+			ID:   pkg.ID,
+			Name: pkg.Name,
+			RoomingHouse: models.TenantRoomingHouseResponse{
+				ID:   roomingHouseMap[pkg.RoomingHouseID].ID,
+				Name: roomingHouseMap[pkg.RoomingHouseID].Name,
+			},
+			Prices: make(map[string]float64),
 		}
 
 		// Memetakan harga berdasarkan unit periode

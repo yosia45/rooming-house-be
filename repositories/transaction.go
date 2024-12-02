@@ -9,7 +9,7 @@ import (
 
 type TransactionRepository interface {
 	CreateTransaction(transaction *models.Transaction) error
-	FindAllTransactions(roomingHouseIDs []uuid.UUID) (*[]models.Transaction, error)
+	FindAllTransactions(roomingHouseIDs []uuid.UUID, year int) (*[]models.TransactionResponse, error)
 	FindTransactionByID(id uuid.UUID) (*models.Transaction, error)
 	DeleteTransactionByID(id uuid.UUID) error
 }
@@ -29,11 +29,23 @@ func (t *transactionRepository) CreateTransaction(transaction *models.Transactio
 	return nil
 }
 
-func (t *transactionRepository) FindAllTransactions(roomingHouseIDs []uuid.UUID) (*[]models.Transaction, error) {
-	var transactions []models.Transaction
-	if err := t.db.Where("rooming_house_id IN ?", roomingHouseIDs).Find(&transactions).Error; err != nil {
+func (t *transactionRepository) FindAllTransactions(roomingHouseIDs []uuid.UUID, year int) (*[]models.TransactionResponse, error) {
+	var transactions []models.TransactionResponse
+
+	query := t.db.Table("transactions t").
+		Select("t.id, t.day, t.month, t.year, t.amount, t.rooming_house_id AS rooming_house_id, rh.name AS rooming_house_name, tc.name AS transaction_category_name, tc.is_expense AS transaction_category_is_expense").
+		Joins("JOIN rooming_houses rh ON t.rooming_house_id = rh.id").
+		Joins("JOIN transaction_categories tc ON t.transaction_category_id = tc.id").
+		Where("t.rooming_house_id IN (?)", roomingHouseIDs)
+
+	if year != 0 {
+		query = query.Where("t.year = ?", year)
+	}
+
+	if err := query.Find(&transactions).Error; err != nil {
 		return nil, err
 	}
+
 	return &transactions, nil
 }
 

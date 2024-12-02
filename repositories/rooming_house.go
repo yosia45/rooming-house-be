@@ -99,6 +99,15 @@ func (r *roomingHouseRepository) FindAllRoomingHouse(roomingHouseID uuid.UUID, u
 	return roomingHouseResponses, nil
 }
 
+func (r *roomingHouseRepository) Dashboard(roomingHouseIDs []uuid.UUID) ([]models.Transaction, error) {
+	var transactions []models.Transaction
+	if err := r.db.Where("rooming_house_id IN ?", roomingHouseIDs).Find(&transactions).Error; err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
+}
+
 func (r *roomingHouseRepository) UpdateRoomingHouse(roomingHouse *models.RoomingHouse, id uuid.UUID) error {
 	res := r.db.Model(&roomingHouse).Where("id = ?", id).Updates(roomingHouse)
 	if res.Error != nil {

@@ -35,15 +35,21 @@ type AddTransactionBody struct {
 }
 
 type TransactionResponse struct {
-	ID          uuid.UUID `json:"id"`
-	CreatedAt   time.Time `json:"created_at"`
-	Day         int       `json:"day"`
-	Month       int       `json:"month"`
-	Year        int       `json:"year"`
-	Amount      float64   `json:"amount"`
-	Description string    `json:"description"`
-	Name        string    `json:"name"`
-	IsExpense   bool      `json:"is_expense"`
+	ID           uuid.UUID                  `json:"id"`
+	Day          int                        `json:"day"`
+	Month        int                        `json:"month"`
+	Year         int                        `json:"year"`
+	Amount       float64                    `json:"amount"`
+	RoomingHouse TenantRoomingHouseResponse `json:"rooming_house" gorm:"embedded"`
+	Category     TransactionCategoryBody    `json:"category" gorm:"embedded"`
+}
+
+type TransactionDashboardResponse struct {
+	Month   string  `json:"month"`
+	Year    int     `json:"year"`
+	Index   int     `json:"index"`
+	Income  float64 `json:"income"`
+	Expense float64 `json:"expense"`
 }
 
 func (t *Transaction) BeforeCreate(tx *gorm.DB) (err error) {

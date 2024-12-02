@@ -1,9 +1,12 @@
 package controllers
 
 import (
+	"net/http"
+	"rooming-house-cms-be/constants"
 	"rooming-house-cms-be/models"
 	"rooming-house-cms-be/repositories"
 	"rooming-house-cms-be/utils"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,10 +20,11 @@ type TransactionController struct {
 	roomRepo                repositories.RoomRepository
 	periodPackageRepo       repositories.PeriodPackageRepository
 	periodRepo              repositories.PeriodRepository
+	roomingHouseRepo        repositories.RoomingHouseRepository
 }
 
-func NewTransactionController(transactionRepo repositories.TransactionRepository, transactionCategoryRepo repositories.TransactionCategoryRepository, tenantRepo repositories.TenantRepository, periodPackageRepo repositories.PeriodPackageRepository, periodRepo repositories.PeriodRepository, roomRepo repositories.RoomRepository) *TransactionController {
-	return &TransactionController{transactionRepo: transactionRepo, transactionCategoryRepo: transactionCategoryRepo, tenantRepo: tenantRepo, periodPackageRepo: periodPackageRepo, periodRepo: periodRepo, roomRepo: roomRepo}
+func NewTransactionController(transactionRepo repositories.TransactionRepository, transactionCategoryRepo repositories.TransactionCategoryRepository, tenantRepo repositories.TenantRepository, periodPackageRepo repositories.PeriodPackageRepository, periodRepo repositories.PeriodRepository, roomRepo repositories.RoomRepository, roomingHouseRepo repositories.RoomingHouseRepository) *TransactionController {
+	return &TransactionController{transactionRepo: transactionRepo, transactionCategoryRepo: transactionCategoryRepo, tenantRepo: tenantRepo, periodPackageRepo: periodPackageRepo, periodRepo: periodRepo, roomRepo: roomRepo, roomingHouseRepo: roomingHouseRepo}
 }
 
 func (tc *TransactionController) CreateTransaction(c echo.Context) error {
@@ -240,11 +244,124 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 	})
 }
 
-// func (tc *TransactionController) FindAllTransactions(c echo.Context) error {
-// 	userPayload := c.Get("userPayload").(*models.JWTPayload)
+func (tc *TransactionController) FindAllTransactions(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
 
-// 	roomingHouseID := c.QueryParam("roomingHouseID")
-// 	roomID := c.QueryParam("roomID")
-// 	isExpense := c.QueryParam("isExpense")
+	// roomingHouseID := c.QueryParam("roomingHouseID")
+	var roomingHouseIDs []uuid.UUID
 
-// }
+	if userPayload.Role == "admin" {
+		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
+	} else {
+		roomingHouses, err := tc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("failed to find rooming houses"))
+		}
+
+		for _, roomingHouse := range roomingHouses {
+			roomingHouseIDs = append(roomingHouseIDs, roomingHouse.ID)
+		}
+	}
+
+	transactions, err := tc.transactionRepo.FindAllTransactions(roomingHouseIDs, 0)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to find transactions"))
+	}
+
+	return c.JSON(http.StatusOK, transactions)
+}
+
+func (tc *TransactionController) Dashboard(c echo.Context) error {
+	userPayload := c.Get("userPayload").(*models.JWTPayload)
+	roomingHouseID := c.QueryParam("roomingHouseID")
+	year := c.QueryParam("year")
+
+	var roomingHouseIDs []uuid.UUID
+
+	now := time.Now()
+	currentYear := now.Format("2006")
+
+	if roomingHouseID != "" {
+		parsedRoomingHouseID, err := uuid.Parse(roomingHouseID)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
+		}
+		roomingHouseIDs = append(roomingHouseIDs, parsedRoomingHouseID)
+	} else {
+		roomingHouses, err := tc.roomingHouseRepo.FindAllRoomingHouse(userPayload.RoomingHouseID, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("failed to find rooming houses"))
+		}
+
+		roomingHouseIDs = append(roomingHouseIDs, roomingHouses[0].ID)
+	}
+
+	var yearInt int
+
+	if year == "" {
+		parsedYear, err := strconv.Atoi(currentYear)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("invalid year"))
+		}
+
+		yearInt = parsedYear
+	} else {
+		parsedYear, err := strconv.Atoi(year)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("invalid year"))
+		}
+
+		yearInt = parsedYear
+	}
+
+	transactions, err := tc.transactionRepo.FindAllTransactions(roomingHouseIDs, yearInt)
+	if err != nil {
+		return utils.HandlerError(c, utils.NewBadRequestError("failed to find transactions"))
+	}
+
+	// Group by Rooming House
+	groupedData := make(map[string]*models.DashboardData)
+
+	// Iterate through transactions to group data and calculate monthly income/expense
+	for _, txn := range *transactions {
+		rhName := txn.RoomingHouse.Name
+
+		// Initialize DashboardData if not exists
+		if _, exists := groupedData[rhName]; !exists {
+			transactionData := make([]models.TransactionDashboardResponse, 12)
+			for i := 0; i < 12; i++ {
+				transactionData[i] = models.TransactionDashboardResponse{
+					Month:   constants.Months[i],
+					Year:    txn.Year, // Default year from first transaction
+					Index:   i + 1,
+					Income:  0,
+					Expense: 0,
+				}
+			}
+			groupedData[rhName] = &models.DashboardData{
+				RoomingHouseName: rhName,
+				TransactionData:  transactionData,
+			}
+		}
+
+		// Find and update the month in TransactionData
+		for i := range groupedData[rhName].TransactionData {
+			if groupedData[rhName].TransactionData[i].Index == txn.Month {
+				if txn.Category.IsExpense {
+					groupedData[rhName].TransactionData[i].Expense += txn.Amount
+				} else {
+					groupedData[rhName].TransactionData[i].Income += txn.Amount
+				}
+				break
+			}
+		}
+	}
+
+	// Convert grouped data into final response slice
+	finalResponse := []models.DashboardData{}
+	for _, data := range groupedData {
+		finalResponse = append(finalResponse, *data)
+	}
+
+	return c.JSON(http.StatusOK, finalResponse)
+}

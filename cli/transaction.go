@@ -16,9 +16,12 @@ func TransactionRoutes(e *echo.Echo) {
 	roomRepo := repositories.NewRoomRepository(config.DB)
 	periodPackageRepo := repositories.NewPeriodPackageRepository(config.DB)
 	periodRepo := repositories.NewPeriodRepository(config.DB)
+	roomingHouseRepo := repositories.NewRoomingHouseRepository(config.DB)
 
-	transactionController := controllers.NewTransactionController(transactionRepo, transactionCategoryRepo, tenantRepo, periodPackageRepo, periodRepo, roomRepo)
+	transactionController := controllers.NewTransactionController(transactionRepo, transactionCategoryRepo, tenantRepo, periodPackageRepo, periodRepo, roomRepo, roomingHouseRepo)
 
 	transaction := e.Group("/transactions")
 	transaction.POST("", transactionController.CreateTransaction, middlewares.JWTAuth)
+	transaction.GET("", transactionController.FindAllTransactions, middlewares.JWTAuth)
+	transaction.GET("/dashboard", transactionController.Dashboard, middlewares.JWTAuth)
 }

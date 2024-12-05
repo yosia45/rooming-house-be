@@ -9,17 +9,18 @@ import (
 func SeedFacility(db *gorm.DB) {
 	facilities := []models.Facility{
 		{
-			Name:     "AC",
+			Name:     "Air  Conditioner",
 			IsPublic: false,
 			IsRoom:   true,
 		},
 		{
-			Name:     "TV",
-			IsPublic: false,
-			IsRoom:   true,
+			Name:        "TV",
+			Description: "43 Inch",
+			IsPublic:    false,
+			IsRoom:      true,
 		},
 		{
-			Name:     "WiFi",
+			Name:     "Wi-Fi",
 			IsPublic: true,
 			IsRoom:   false,
 		},
@@ -45,6 +46,37 @@ func SeedFacility(db *gorm.DB) {
 		},
 		{
 			Name:     "Single-Size Bed",
+			IsPublic: false,
+			IsRoom:   true,
+		},
+		{
+			Name:     "Double-Size Bed",
+			IsPublic: false,
+			IsRoom:   true,
+		},
+		{
+			Name:        "Water Heater",
+			Description: "Bathroom Facility",
+			IsPublic:    false,
+			IsRoom:      true,
+		},
+		{
+			Name:     "Fridge",
+			IsPublic: true,
+			IsRoom:   false,
+		},
+		{
+			Name:     "Working Desk and Chair Set",
+			IsPublic: false,
+			IsRoom:   true,
+		},
+		{
+			Name:     "Dispenser",
+			IsPublic: true,
+			IsRoom:   false,
+		},
+		{
+			Name:     "Balcony",
 			IsPublic: false,
 			IsRoom:   true,
 		},

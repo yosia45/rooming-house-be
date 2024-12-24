@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"rooming-house-cms-be/models"
+	"rooming-house-cms-be/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,36 +33,92 @@ func (r *roomRepository) CreateRoom(room *models.Room) error {
 }
 
 func (r *roomRepository) FindAllRooms(roomingHouseIDs []uuid.UUID) (*[]models.AllRoomResponse, error) {
-	var rooms []models.Room
+	var response []models.AllRoomResponse
 
 	now := time.Now()
 
-	if err := r.db.Preload("Tenants", "is_tenant = 1 AND start_date <= ? AND end_date >= ?", now, now).Where("rooming_house_id IN ?", roomingHouseIDs).Find(&rooms).Error; err != nil {
+	query := `
+		SELECT 
+			r.id AS room_id,
+			r.name AS room_name,
+			r.floor AS floor_number,
+			r.max_capacity,
+			r.rooming_house_id,
+			t.id AS tenant_id,
+			t.name AS tenant_name,
+			t.gender AS tenant_gender,
+			t.start_date AS tenant_start_date,
+			t.end_date AS tenant_end_date,
+			t.room_id AS tenant_room_id,
+			t.rooming_house_id AS tenant_rooming_house_id
+		FROM 
+			rooms r
+		LEFT JOIN 
+			tenants t
+		ON 
+			r.id = t.room_id 
+			AND t.is_tenant = 1 
+			AND t.start_date <= ? 
+			AND t.end_date >= ?
+		WHERE 
+			r.rooming_house_id IN (?);
+	`
+
+	// Replace with raw query and scan into a struct
+	rows, err := r.db.Raw(query, now, now, roomingHouseIDs).Rows()
+	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	var response []models.AllRoomResponse
-
-	for _, room := range rooms {
-		if room.Tenants != nil {
-			tenantResponse := models.GetAllTenantResponse{
-				ID:             room.Tenants.ID,
-				Name:           room.Tenants.Name,
-				Gender:         room.Tenants.Gender,
-				StartDate:      room.Tenants.StartDate,
-				EndDate:        room.Tenants.EndDate,
-				RoomID:         *room.Tenants.RoomID,
-				RoomingHouseID: room.Tenants.RoomingHouseID,
-			}
-			response = append(response, models.AllRoomResponse{
-				ID:             room.ID,
-				Name:           room.Name,
-				Floor:          room.Floor,
-				MaxCapacity:    room.MaxCapacity,
-				Tenants:        tenantResponse,
-				RoomingHouseID: room.RoomingHouseID,
-			})
+	// Iterate over rows and map to response
+	for rows.Next() {
+		var room models.AllRoomResponse
+		var tenant struct {
+			ID             *uuid.UUID `json:"id"`
+			Name           *string    `json:"name"`
+			Gender         *string    `json:"gender"`
+			StartDate      *time.Time `json:"start_date"`
+			EndDate        *time.Time `json:"end_date"`
+			RoomID         *uuid.UUID `json:"room_id"`
+			RoomingHouseID *uuid.UUID `json:"rooming_house_id"`
 		}
+
+		// Scan each column to the correct struct
+		err := rows.Scan(
+			&room.ID,
+			&room.Name,
+			&room.Floor,
+			&room.MaxCapacity,
+			&room.RoomingHouseID,
+			&tenant.ID,
+			&tenant.Name,
+			&tenant.Gender,
+			&tenant.StartDate,
+			&tenant.EndDate,
+			&tenant.RoomID,
+			&tenant.RoomingHouseID,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if tenant ID is NULL
+		if tenant.ID == nil {
+			room.Tenants = models.GetAllTenantResponse{} // Empty tenant object
+		} else {
+			room.Tenants = models.GetAllTenantResponse{
+				ID:             *tenant.ID,
+				Name:           utils.PtrToString(tenant.Name),
+				Gender:         utils.PtrToString(tenant.Gender),
+				StartDate:      tenant.StartDate,
+				EndDate:        tenant.EndDate,
+				RoomID:         *tenant.RoomID,
+				RoomingHouseID: *tenant.RoomingHouseID,
+			}
+		}
+
+		response = append(response, room)
 	}
 
 	return &response, nil

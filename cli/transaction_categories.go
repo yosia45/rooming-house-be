@@ -13,7 +13,7 @@ func TransactionCategoryRoutes(e *echo.Echo) {
 
 	transactionCategoryController := controllers.NewTransactionCategoryController(transactionCategoryRepo)
 
-	transactionCategory := e.Group("/transaction-category")
+	transactionCategory := e.Group("/transaction-categories")
 	transactionCategory.POST("", transactionCategoryController.CreateTransactionCategory)
 	transactionCategory.GET("/:id", transactionCategoryController.FindTransactionCategoryByID)
 	transactionCategory.GET("", transactionCategoryController.FindAllTransactionCategories)

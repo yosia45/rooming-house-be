@@ -205,8 +205,11 @@ func (rc *RoomController) GetAllRooms(c echo.Context) error {
 
 	rooms, err := rc.roomRepo.FindAllRooms(roomingHouseIDs)
 	if err != nil {
+		fmt.Println(err)
 		return utils.HandlerError(c, utils.NewInternalError("failed to get rooms"))
 	}
+
+	fmt.Println(roomingHouseIDs)
 
 	return c.JSON(http.StatusOK, rooms)
 }

@@ -55,6 +55,7 @@ type AllTenantRepoResponse struct {
 	ID           uuid.UUID                  `json:"id"`
 	Name         string                     `json:"name"`
 	Gender       string                     `json:"gender"`
+	IsTenant     bool                       `json:"is_tenant"`
 	StartDate    *time.Time                 `json:"start_date"`
 	EndDate      *time.Time                 `json:"end_date"`
 	Room         *TenantRoomResponse        `json:"room" gorm:"embedded"`

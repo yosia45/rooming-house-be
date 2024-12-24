@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"rooming-house-cms-be/models"
 	"rooming-house-cms-be/repositories"
@@ -22,7 +21,6 @@ func NewRoomingHouseController(roomingHouseRepo repositories.RoomingHouseReposit
 }
 
 func (rhc *RoomingHouseController) CreateRoomingHouse(c echo.Context) error {
-	fmt.Println("masuk")
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
 
 	var roomingHouseBody models.RoomingHouseBody

@@ -149,44 +149,30 @@ func (tc *TenantController) CreateTenant(c echo.Context) error {
 
 func (tc *TenantController) FindAllTenants(c echo.Context) error {
 	userPayload := c.Get("userPayload").(*models.JWTPayload)
-
-	roomingHouseID := c.QueryParam("rooming_house_id")
-	isTenant := c.QueryParam("isTenant")
+	is_tenant := c.QueryParam("is_tenant")
+	var IsTenant bool
 
 	var roomingHouseIDs []uuid.UUID
+	if is_tenant == "true" {
+		IsTenant = true
+	} else {
+		IsTenant = false
+	}
 
 	if userPayload.Role == "admin" {
 		roomingHouseIDs = append(roomingHouseIDs, userPayload.RoomingHouseID)
 	} else {
-		if roomingHouseID != "" {
-			parsedRoomingHouseID, err := uuid.Parse(roomingHouseID)
-			if err != nil {
-				return utils.HandlerError(c, utils.NewBadRequestError("invalid rooming house id"))
-			}
+		roomingHouses, err := tc.roomingHouseRepo.FindAllRoomingHouse(uuid.Nil, userPayload.UserID, userPayload.Role)
+		if err != nil {
+			return utils.HandlerError(c, utils.NewBadRequestError("failed to find rooming houses"))
+		}
 
-			roomingHouseIDs = append(roomingHouseIDs, parsedRoomingHouseID)
-		} else {
-			roomingHouses, err := tc.roomingHouseRepo.FindAllRoomingHouse(uuid.Nil, userPayload.UserID, userPayload.Role)
-			if err != nil {
-				return utils.HandlerError(c, utils.NewBadRequestError("failed to find rooming houses"))
-			}
-
-			for _, ID := range roomingHouses {
-				roomingHouseIDs = append(roomingHouseIDs, ID.ID)
-			}
-
+		for _, ID := range roomingHouses {
+			roomingHouseIDs = append(roomingHouseIDs, ID.ID)
 		}
 	}
 
-	var isTenantBool bool
-
-	if isTenant == "" || isTenant == "false" {
-		isTenantBool = false
-	} else {
-		isTenantBool = true
-	}
-
-	tenants, err := tc.tenantRepo.FindAllTenants(roomingHouseIDs, isTenantBool)
+	tenants, err := tc.tenantRepo.FindAllTenants(roomingHouseIDs, IsTenant)
 	if err != nil {
 		return utils.HandlerError(c, utils.NewBadRequestError("failed to find tenants"))
 	}

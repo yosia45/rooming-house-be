@@ -40,6 +40,7 @@ func main() {
 	cli.TransactionRoutes(e)
 	cli.TenantRoutes(e)
 	cli.AdminRoutes(e)
+	cli.PeriodRoute(e)
 
 	e.Logger.Fatal(e.Start(":" + port))
 }

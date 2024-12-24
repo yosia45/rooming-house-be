@@ -55,6 +55,8 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 		if transactionBody.RoomingHouseID == uuid.Nil {
 			return utils.HandlerError(c, utils.NewBadRequestError("rooming house id is required"))
 		}
+	} else {
+		transactionBody.RoomingHouseID = userPayload.RoomingHouseID
 	}
 
 	var amount float64
@@ -101,6 +103,7 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 			Month:                 transactionBody.Month,
 			Year:                  transactionBody.Year,
 			Amount:                amount,
+			IsRoom:                true,
 			TransactionCategoryID: transactionBody.TransactionCategoryID,
 			TenantID:              &tenant.ID,
 			RoomID:                &tenant.BookedRoomID,
@@ -161,6 +164,7 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 			Month:                 transactionBody.Month,
 			Year:                  transactionBody.Year,
 			Amount:                transactionBody.Amount,
+			IsRoom:                false,
 			TransactionCategoryID: transactionBody.TransactionCategoryID,
 			RoomID:                &tenant.BookedRoomID,
 			TenantID:              transactionBody.TenantID,
@@ -201,6 +205,7 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 			Month:                 transactionBody.Month,
 			Year:                  transactionBody.Year,
 			Amount:                transactionBody.Amount,
+			IsRoom:                false,
 			TransactionCategoryID: transactionBody.TransactionCategoryID,
 			TenantID:              transactionBody.TenantID,
 			RoomingHouseID:        tenant.RoomingHouse.ID,
@@ -231,6 +236,7 @@ func (tc *TransactionController) CreateTransaction(c echo.Context) error {
 			Month:                 transactionBody.Month,
 			Year:                  transactionBody.Year,
 			Amount:                transactionBody.Amount,
+			IsRoom:                transactionBody.IsRoom,
 			TransactionCategoryID: transactionBody.TransactionCategoryID,
 			RoomID:                transactionBody.RoomID,
 			RoomingHouseID:        transactionBody.RoomingHouseID,

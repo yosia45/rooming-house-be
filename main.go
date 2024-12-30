@@ -41,6 +41,7 @@ func main() {
 	cli.TenantRoutes(e)
 	cli.AdminRoutes(e)
 	cli.PeriodRoute(e)
+	cli.FacilityRoutes(e)
 
 	e.Logger.Fatal(e.Start(":" + port))
 }
